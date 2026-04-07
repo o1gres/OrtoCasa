@@ -64,16 +64,18 @@ jobs:
           echo "{\"version\": \"${VERSION}\", \"notes\": \"Release ${VERSION}\"}" \
             > firmware/version.json
 
-      # 8. Commit del version.json aggiornato su main
-      - name: Aggiorna version.json su main
+      # 8. Commit del version.json aggiornato su master
+      - name: Aggiorna version.json su master
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main || git fetch origin master
-          git checkout main 2>/dev/null || git checkout master
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "{\"version\": \"${VERSION}\", \"notes\": \"Release ${VERSION}\"}" \
+            > firmware/version.json
           git add firmware/version.json
           git commit -m "chore: aggiorna version.json a ${{ github.ref_name }}" || echo "Nessuna modifica"
-          git push origin HEAD
+          git push origin HEAD:master
 
       # 9. Crea la GitHub Release e carica il .bin
       - name: Crea Release GitHub
