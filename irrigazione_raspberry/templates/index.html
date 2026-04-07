@@ -8,305 +8,117 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg:        #0d1a12;
-      --surface:   #132019;
-      --surface2:  #1b2e22;
-      --border:    #2a4035;
-      --green:     #4ade80;
-      --green-dim: #166534;
-      --amber:     #fbbf24;
-      --red:       #f87171;
-      --text:      #d4f0dd;
-      --muted:     #6b8f79;
-      --mono:      'DM Mono', monospace;
-      --sans:      'Syne', sans-serif;
+      --bg:       #0a0f0d;
+      --surface:  #111a14;
+      --surface2: #16221a;
+      --border:   #1f3328;
+      --green:    #3ddc84;
+      --green2:   #166534;
+      --amber:    #fbbf24;
+      --red:      #f87171;
+      --blue:     #74c7ec;
+      --text:     #cfe8d8;
+      --muted:    #4a7060;
+      --mono:     'DM Mono', monospace;
+      --sans:     'Syne', sans-serif;
     }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--mono);
-      min-height: 100vh;
-      padding: 1.5rem 1rem 3rem;
-    }
+    body { background:var(--bg); color:var(--text); font-family:var(--mono); min-height:100vh; padding:1.5rem 1rem 4rem; }
 
     /* ── Header ── */
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 2rem;
-      flex-wrap: wrap;
-      gap: .75rem;
-    }
+    header { display:flex; align-items:center; justify-content:space-between; margin-bottom:2rem; flex-wrap:wrap; gap:.75rem; }
+    .logo { font-family:var(--sans); font-weight:800; font-size:clamp(1.3rem,5vw,1.8rem); letter-spacing:-.02em; color:var(--green); display:flex; align-items:center; gap:.5rem; }
+    .status-badge { display:flex; align-items:center; gap:.5rem; padding:.4rem .9rem; border-radius:99px; border:1px solid var(--border); background:var(--surface); font-size:.78rem; letter-spacing:.04em; text-transform:uppercase; transition:all .4s; }
+    .status-dot { width:8px; height:8px; border-radius:50%; background:var(--muted); transition:background .4s; flex-shrink:0; }
+    .status-badge.online  { border-color:var(--green2); }
+    .status-badge.online  .status-dot { background:var(--green); box-shadow:0 0 6px var(--green); animation:pulse 2s infinite; }
+    .status-badge.offline .status-dot { background:var(--red); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-    .logo {
-      font-family: var(--sans);
-      font-weight: 800;
-      font-size: clamp(1.3rem, 5vw, 1.8rem);
-      letter-spacing: -.02em;
-      color: var(--green);
-      display: flex;
-      align-items: center;
-      gap: .5rem;
-    }
-    .logo span { font-size: 1.4em; }
+    /* ── Alert perdita ── */
+    .leak-alert { display:none; background:#1a0a0a; border:1px solid var(--red); border-radius:12px; padding:.75rem 1rem; margin-bottom:1rem; color:var(--red); font-size:.8rem; align-items:center; gap:.6rem; max-width:680px; margin-left:auto; margin-right:auto; }
+    .leak-alert.visible { display:flex; }
 
-    /* ── Status badge ── */
-    .status-badge {
-      display: flex;
-      align-items: center;
-      gap: .5rem;
-      padding: .4rem .9rem;
-      border-radius: 99px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      font-size: .78rem;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-      transition: all .4s;
-    }
-    .status-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--muted);
-      transition: background .4s;
-      flex-shrink: 0;
-    }
-    .status-badge.online  { border-color: var(--green-dim); }
-    .status-badge.online  .status-dot { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
-    .status-badge.offline { border-color: #4a2020; }
-    .status-badge.offline .status-dot { background: var(--red); }
-
-    @keyframes pulse {
-      0%,100% { opacity: 1; }
-      50%      { opacity: .4; }
-    }
-
-    /* ── Grid layout ── */
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      max-width: 680px;
-      margin: 0 auto;
-    }
-    @media (max-width: 520px) {
-      .grid { grid-template-columns: 1fr; }
-    }
+    /* ── Grid ── */
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; max-width:680px; margin:0 auto; }
+    @media(max-width:520px) { .grid { grid-template-columns:1fr; } }
 
     /* ── Card ── */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1.25rem;
-    }
-    .card.wide { grid-column: 1 / -1; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.25rem; }
+    .card.wide { grid-column:1 / -1; }
+    .card-title { font-family:var(--sans); font-weight:700; font-size:.85rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:1rem; display:flex; align-items:center; gap:.4rem; }
 
-    .card-title {
-      font-family: var(--sans);
-      font-weight: 700;
-      font-size: .85rem;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: .4rem;
-    }
+    /* ── Valvola ── */
+    .valve-display { text-align:center; padding:.5rem 0 1rem; }
+    .valve-icon  { font-size:3.2rem; line-height:1; margin-bottom:.4rem; transition:filter .5s; }
+    .valve-label { font-family:var(--sans); font-size:1.5rem; font-weight:700; }
+    .valve-open   .valve-icon  { color:var(--green); filter:drop-shadow(0 0 12px var(--green)); }
+    .valve-open   .valve-label { color:var(--green); }
+    .valve-closed .valve-icon  { color:var(--muted); filter:none; }
+    .valve-closed .valve-label { color:var(--muted); }
 
-    /* ── Valve state ── */
-    .valve-display {
-      text-align: center;
-      padding: .5rem 0 1rem;
-    }
-    .valve-icon {
-      font-size: 3.2rem;
-      line-height: 1;
-      margin-bottom: .4rem;
-      filter: drop-shadow(0 0 12px currentColor);
-      transition: filter .5s;
-    }
-    .valve-label {
-      font-family: var(--sans);
-      font-size: 1.5rem;
-      font-weight: 700;
-    }
-    .valve-open   .valve-icon  { color: var(--green); }
-    .valve-open   .valve-label { color: var(--green); }
-    .valve-closed .valve-icon  { color: var(--muted); filter: none; }
-    .valve-closed .valve-label { color: var(--muted); }
+    /* ── Pills ── */
+    .info-row { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.75rem; }
+    .pill { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:.25rem .6rem; font-size:.72rem; color:var(--muted); }
+    .pill strong { color:var(--text); }
+    .pill.highlight { border-color:var(--green2); }
+    .pill.highlight strong { color:var(--green); }
+    .pill.warn { border-color:#4a3000; }
+    .pill.warn strong { color:var(--amber); }
 
-    /* ── Info pills ── */
-    .info-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: .5rem;
-      margin-top: .75rem;
-    }
-    .pill {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: .25rem .6rem;
-      font-size: .72rem;
-      color: var(--muted);
-    }
-    .pill strong { color: var(--text); }
+    /* ── Statistiche flusso ── */
+    .stat-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.6rem; margin-bottom:1rem; }
+    .stat-box { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:.7rem .6rem; text-align:center; }
+    .stat-value { font-family:var(--sans); font-size:1.4rem; font-weight:700; color:var(--green); line-height:1; margin-bottom:.2rem; }
+    .stat-label { font-size:.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
 
-    /* ── Buttons ── */
-    .btn-row {
-      display: flex;
-      gap: .6rem;
-      flex-wrap: wrap;
-    }
-    .btn {
-      flex: 1;
-      min-width: 100px;
-      padding: .75rem .5rem;
-      border: none;
-      border-radius: 10px;
-      font-family: var(--mono);
-      font-size: .8rem;
-      font-weight: 500;
-      letter-spacing: .04em;
-      cursor: pointer;
-      transition: transform .1s, opacity .2s, box-shadow .2s;
-      text-transform: uppercase;
-    }
-    .btn:active { transform: scale(.96); }
-    .btn:disabled { opacity: .35; cursor: not-allowed; }
+    /* ── Grafico barre ── */
+    .chart-wrap { overflow-x:auto; padding-bottom:.5rem; }
+    .chart { display:flex; align-items:flex-end; gap:4px; height:80px; min-width:100%; }
+    .bar-col { display:flex; flex-direction:column; align-items:center; gap:3px; flex:1; min-width:24px; }
+    .bar { width:100%; background:var(--green2); border-radius:4px 4px 0 0; transition:height .4s, background .2s; cursor:default; min-height:2px; }
+    .bar:hover { background:var(--green); }
+    .bar-label { font-size:.55rem; color:var(--muted); white-space:nowrap; }
+    .bar-val   { font-size:.6rem; color:var(--muted); }
 
-    .btn-open {
-      background: var(--green);
-      color: #0d1a12;
-      box-shadow: 0 0 20px #4ade8030;
-    }
-    .btn-open:hover:not(:disabled) { box-shadow: 0 0 28px #4ade8060; }
+    /* ── Bottoni ── */
+    .btn-row { display:flex; gap:.6rem; flex-wrap:wrap; }
+    .btn { flex:1; min-width:80px; padding:.75rem .5rem; border:none; border-radius:10px; font-family:var(--mono); font-size:.8rem; font-weight:500; letter-spacing:.04em; cursor:pointer; transition:transform .1s, opacity .2s, box-shadow .2s; text-transform:uppercase; }
+    .btn:active { transform:scale(.96); }
+    .btn:disabled { opacity:.35; cursor:not-allowed; }
+    .btn-open  { background:var(--green); color:#0a0f0d; box-shadow:0 0 20px #3ddc8430; }
+    .btn-open:hover:not(:disabled) { box-shadow:0 0 28px #3ddc8460; }
+    .btn-close { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+    .btn-close:hover:not(:disabled) { background:#1f3020; }
+    .btn-danger { background:transparent; color:var(--red); border:1px solid #4a2020; font-size:.72rem; }
+    .btn-danger:hover { background:#1a0808; }
 
-    .btn-close {
-      background: var(--surface2);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-    .btn-close:hover:not(:disabled) { background: #243630; }
-
-    /* ── Toggle switch ── */
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: .9rem;
-    }
-    .toggle-label { font-size: .82rem; color: var(--text); }
-
-    .toggle {
-      position: relative;
-      width: 44px; height: 24px;
-      flex-shrink: 0;
-    }
-    .toggle input { opacity: 0; width: 0; height: 0; }
-    .toggle-track {
-      position: absolute; inset: 0;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 99px;
-      cursor: pointer;
-      transition: background .3s;
-    }
-    .toggle-track::after {
-      content: '';
-      position: absolute;
-      top: 3px; left: 3px;
-      width: 16px; height: 16px;
-      border-radius: 50%;
-      background: var(--muted);
-      transition: transform .3s, background .3s;
-    }
-    .toggle input:checked + .toggle-track { background: var(--green-dim); border-color: var(--green); }
-    .toggle input:checked + .toggle-track::after { transform: translateX(20px); background: var(--green); }
+    /* ── Toggle ── */
+    .toggle-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:.9rem; }
+    .toggle { position:relative; width:44px; height:24px; flex-shrink:0; }
+    .toggle input { opacity:0; width:0; height:0; }
+    .toggle-track { position:absolute; inset:0; background:var(--surface2); border:1px solid var(--border); border-radius:99px; cursor:pointer; transition:background .3s; }
+    .toggle-track::after { content:''; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:var(--muted); transition:transform .3s, background .3s; }
+    .toggle input:checked + .toggle-track { background:var(--green2); border-color:var(--green); }
+    .toggle input:checked + .toggle-track::after { transform:translateX(20px); background:var(--green); }
 
     /* ── Time inputs ── */
-    .time-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: .5rem;
-      margin-bottom: .9rem;
-    }
-    .time-group label {
-      display: block;
-      font-size: .7rem;
-      color: var(--muted);
-      margin-bottom: .25rem;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-    }
-    .time-input {
-      width: 100%;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: var(--mono);
-      font-size: .9rem;
-      padding: .5rem .6rem;
-      outline: none;
-      transition: border-color .2s;
-    }
-    .time-input:focus { border-color: var(--green); }
+    .time-grid { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-bottom:.9rem; }
+    .time-group label { display:block; font-size:.7rem; color:var(--muted); margin-bottom:.25rem; text-transform:uppercase; letter-spacing:.06em; }
+    .time-input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--mono); font-size:.9rem; padding:.5rem .6rem; outline:none; transition:border-color .2s; }
+    .time-input:focus { border-color:var(--green); }
 
     /* ── Save button ── */
-    .btn-save {
-      width: 100%;
-      padding: .7rem;
-      background: transparent;
-      border: 1px solid var(--green);
-      border-radius: 10px;
-      color: var(--green);
-      font-family: var(--mono);
-      font-size: .8rem;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: background .2s, box-shadow .2s;
-      margin-top: .25rem;
-    }
-    .btn-save:hover { background: #4ade8015; box-shadow: 0 0 12px #4ade8030; }
-    .btn-save:active { transform: scale(.98); }
+    .btn-save { width:100%; padding:.7rem; background:transparent; border:1px solid var(--green); border-radius:10px; color:var(--green); font-family:var(--mono); font-size:.8rem; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; transition:background .2s, box-shadow .2s; margin-top:.25rem; }
+    .btn-save:hover { background:#3ddc8415; box-shadow:0 0 12px #3ddc8430; }
 
     /* ── Toast ── */
-    .toast {
-      position: fixed;
-      bottom: 1.5rem; left: 50%;
-      transform: translateX(-50%) translateY(80px);
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: .6rem 1.2rem;
-      font-size: .8rem;
-      letter-spacing: .03em;
-      opacity: 0;
-      transition: transform .3s, opacity .3s;
-      pointer-events: none;
-      white-space: nowrap;
-      z-index: 999;
-    }
-    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-    .toast.ok  { border-color: var(--green-dim); color: var(--green); }
-    .toast.err { border-color: #4a2020; color: var(--red); }
+    .toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:.6rem 1.2rem; font-size:.8rem; opacity:0; transition:transform .3s, opacity .3s; pointer-events:none; white-space:nowrap; z-index:999; }
+    .toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+    .toast.ok  { border-color:var(--green2); color:var(--green); }
+    .toast.err { border-color:#4a2020; color:var(--red); }
 
-    /* ── Footer ── */
-    footer {
-      text-align: center;
-      color: var(--muted);
-      font-size: .7rem;
-      margin-top: 2.5rem;
-      letter-spacing: .04em;
-    }
+    footer { text-align:center; color:var(--muted); font-size:.7rem; margin-top:2.5rem; letter-spacing:.04em; }
   </style>
 </head>
 <body>
@@ -319,31 +131,69 @@
   </div>
 </header>
 
+<!-- Alert perdita -->
+<div class="leak-alert" id="leakAlert">
+  <span>⚠️</span>
+  <span>Perdita rilevata — flusso d'acqua con valvola chiusa!</span>
+</div>
+
 <div class="grid">
 
   <!-- Stato ESP -->
   <div class="card">
     <div class="card-title">⚡ Dispositivo</div>
     <div class="valve-display valve-closed" id="valveDisplay">
-      <div class="valve-icon" id="valveIcon">💧</div>
+      <div class="valve-icon" id="valveIcon">🚰</div>
       <div class="valve-label" id="valveLabel">—</div>
     </div>
-    <div class="info-row" id="infoRow">
+    <div class="info-row">
+      <div class="pill"><strong id="fwVal">—</strong></div>
       <div class="pill">RSSI <strong id="rssiVal">—</strong></div>
       <div class="pill">Uptime <strong id="uptimeVal">—</strong></div>
-      <div class="pill">Ora ESP <strong id="espTimeVal">—</strong></div>
+    </div>
+  </div>
+
+  <!-- Flusso corrente -->
+  <div class="card">
+    <div class="card-title">💧 Flusso</div>
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-value" id="flowLpm">0.0</div>
+        <div class="stat-label">L/min</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="sessionL">0.0</div>
+        <div class="stat-label">Sessione L</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="todayL">0.0</div>
+        <div class="stat-label">Oggi L</div>
+      </div>
+    </div>
+    <div class="info-row">
+      <div class="pill highlight">Stagione <strong id="seasonL">—</strong></div>
+      <div class="pill">Inizio <strong id="seasonStart">—</strong></div>
     </div>
   </div>
 
   <!-- Controllo manuale -->
   <div class="card">
     <div class="card-title">🎛️ Controllo manuale</div>
-    <p style="font-size:.75rem;color:var(--muted);margin-bottom:1rem;line-height:1.5">
+    <p style="font-size:.75rem;color:var(--muted);margin-bottom:1rem;line-height:1.6">
       Apri o chiudi la valvola<br>indipendentemente dagli orari.
     </p>
-    <div class="btn-row">
+    <div class="btn-row" style="margin-bottom:.6rem">
       <button class="btn btn-open"  onclick="sendCmd('open')"  id="btnOpen">Apri</button>
       <button class="btn btn-close" onclick="sendCmd('close')" id="btnClose">Chiudi</button>
+    </div>
+    <button class="btn btn-danger" onclick="resetSeason()" style="width:100%">Reset stagione</button>
+  </div>
+
+  <!-- Storico 7 giorni -->
+  <div class="card">
+    <div class="card-title">📊 Ultimi 7 giorni</div>
+    <div class="chart-wrap">
+      <div class="chart" id="chart"></div>
     </div>
   </div>
 
@@ -351,21 +201,12 @@
   <div class="card">
     <div class="card-title">🌅 Mattina</div>
     <div class="toggle-row">
-      <span class="toggle-label">Abilitata</span>
-      <label class="toggle">
-        <input type="checkbox" id="mattina_abilitata">
-        <span class="toggle-track"></span>
-      </label>
+      <span style="font-size:.82rem">Abilitata</span>
+      <label class="toggle"><input type="checkbox" id="mattina_abilitata"><span class="toggle-track"></span></label>
     </div>
     <div class="time-grid">
-      <div class="time-group">
-        <label>Inizio</label>
-        <input type="time" class="time-input" id="mattina_inizio" value="06:00">
-      </div>
-      <div class="time-group">
-        <label>Fine</label>
-        <input type="time" class="time-input" id="mattina_fine" value="06:30">
-      </div>
+      <div class="time-group"><label>Inizio</label><input type="time" class="time-input" id="mattina_inizio" value="06:00"></div>
+      <div class="time-group"><label>Fine</label><input type="time" class="time-input" id="mattina_fine" value="06:30"></div>
     </div>
     <button class="btn-save" onclick="saveSchedule('mattina')">Salva mattina</button>
   </div>
@@ -374,21 +215,12 @@
   <div class="card">
     <div class="card-title">🌆 Sera</div>
     <div class="toggle-row">
-      <span class="toggle-label">Abilitata</span>
-      <label class="toggle">
-        <input type="checkbox" id="sera_abilitata">
-        <span class="toggle-track"></span>
-      </label>
+      <span style="font-size:.82rem">Abilitata</span>
+      <label class="toggle"><input type="checkbox" id="sera_abilitata"><span class="toggle-track"></span></label>
     </div>
     <div class="time-grid">
-      <div class="time-group">
-        <label>Inizio</label>
-        <input type="time" class="time-input" id="sera_inizio" value="19:00">
-      </div>
-      <div class="time-group">
-        <label>Fine</label>
-        <input type="time" class="time-input" id="sera_fine" value="19:30">
-      </div>
+      <div class="time-group"><label>Inizio</label><input type="time" class="time-input" id="sera_inizio" value="19:00"></div>
+      <div class="time-group"><label>Fine</label><input type="time" class="time-input" id="sera_fine" value="19:30"></div>
     </div>
     <button class="btn-save" onclick="saveSchedule('sera')">Salva sera</button>
   </div>
@@ -406,61 +238,60 @@
     el.className = `toast ${type} show`;
     setTimeout(() => el.className = 'toast', 2500);
   }
-
-  function pad(n) { return String(n).padStart(2, '0'); }
-
+  function pad(n) { return String(n).padStart(2,'0'); }
   function uptimeStr(s) {
-    if (s == null || s === 0) return '—';
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const sec = s % 60;
+    if (!s) return '—';
+    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
     if (h > 0) return `${h}h ${pad(m)}m`;
     if (m > 0) return `${m}m ${pad(sec)}s`;
     return `${sec}s`;
   }
+  function fmtL(v) { return v != null ? Number(v).toFixed(1) + ' L' : '—'; }
 
   // ── Stato ────────────────────────────────────────────────────────────────
   function updateUI(data) {
-    // badge connessione
+    // Badge
     const badge = document.getElementById('statusBadge');
-    const txt   = document.getElementById('statusText');
     badge.className = 'status-badge ' + (data.online ? 'online' : 'offline');
-    txt.textContent  = data.online ? 'Connesso' : 'Offline';
+    document.getElementById('statusText').textContent = data.online ? 'Connesso' : 'Offline';
 
-    // valvola
+    // Valvola
     const disp  = document.getElementById('valveDisplay');
     const icon  = document.getElementById('valveIcon');
     const label = document.getElementById('valveLabel');
     if (data.valve === 'open') {
-      disp.className  = 'valve-display valve-open';
-      icon.textContent  = '💧';
-      label.textContent = 'Aperta';
+      disp.className = 'valve-display valve-open';
+      icon.textContent = '💧'; label.textContent = 'Aperta';
     } else if (data.valve === 'closed') {
-      disp.className  = 'valve-display valve-closed';
-      icon.textContent  = '🚰';
-      label.textContent = 'Chiusa';
+      disp.className = 'valve-display valve-closed';
+      icon.textContent = '🚰'; label.textContent = 'Chiusa';
     } else {
-      disp.className  = 'valve-display valve-closed';
-      icon.textContent  = '❓';
-      label.textContent = 'Sconosciuto';
+      disp.className = 'valve-display valve-closed';
+      icon.textContent = '❓'; label.textContent = 'Sconosciuto';
     }
 
-    // info
+    // Info
+    document.getElementById('fwVal').textContent    = data.firmware_version ? 'v' + data.firmware_version : '—';
     document.getElementById('rssiVal').textContent  = data.wifi_rssi != null ? data.wifi_rssi + ' dBm' : '—';
     document.getElementById('uptimeVal').textContent = uptimeStr(data.uptime_s);
-    document.getElementById('espTimeVal').textContent = data.esp_time || '—';
     document.getElementById('lastSeen').textContent  = data.last_seen
       ? new Date(data.last_seen).toLocaleTimeString('it-IT') : '—';
 
-    // bottoni
+    // Flusso
+    document.getElementById('flowLpm').textContent   = data.flow_lpm != null ? Number(data.flow_lpm).toFixed(1) : '0.0';
+    document.getElementById('sessionL').textContent  = data.session_liters != null ? Number(data.session_liters).toFixed(1) : '0.0';
+
+    // Alert perdita
+    document.getElementById('leakAlert').className =
+      'leak-alert' + (data.leak_alert ? ' visible' : '');
+
+    // Bottoni
     const offline = !data.online;
     document.getElementById('btnOpen').disabled  = offline;
     document.getElementById('btnClose').disabled = offline;
 
-    // fasce orarie
-    if (data.schedule) {
-      loadScheduleUI(data.schedule);
-    }
+    // Schedule
+    if (data.schedule) loadScheduleUI(data.schedule);
   }
 
   function loadScheduleUI(schedule) {
@@ -468,72 +299,113 @@
       const f = schedule[fascia];
       if (!f) continue;
       document.getElementById(`${fascia}_abilitata`).checked = f.abilitata;
-      document.getElementById(`${fascia}_inizio`).value =
-        `${pad(f.ora_inizio)}:${pad(f.min_inizio)}`;
-      document.getElementById(`${fascia}_fine`).value =
-        `${pad(f.ora_fine)}:${pad(f.min_fine)}`;
+      document.getElementById(`${fascia}_inizio`).value = `${pad(f.ora_inizio)}:${pad(f.min_inizio)}`;
+      document.getElementById(`${fascia}_fine`).value   = `${pad(f.ora_fine)}:${pad(f.min_fine)}`;
     }
   }
 
-  // ── API calls ─────────────────────────────────────────────────────────────
+  // ── Grafico ───────────────────────────────────────────────────────────────
+  function renderChart(history) {
+    const chart = document.getElementById('chart');
+    chart.innerHTML = '';
+    if (!history.length) { chart.innerHTML = '<span style="color:var(--muted);font-size:.75rem;margin:auto">Nessun dato</span>'; return; }
+
+    // Ultimi 7 giorni
+    const data = [...history].reverse().slice(-7);
+    const max  = Math.max(...data.map(d => d.liters), 1);
+
+    data.forEach(d => {
+      const pct   = (d.liters / max) * 100;
+      const label = d.data.slice(5); // MM-DD
+      const col   = document.createElement('div');
+      col.className = 'bar-col';
+      col.innerHTML = `
+        <div class="bar-val">${d.liters > 0 ? Number(d.liters).toFixed(0) : ''}</div>
+        <div class="bar" style="height:${Math.max(pct,2)}%" title="${d.data}: ${Number(d.liters).toFixed(1)} L"></div>
+        <div class="bar-label">${label}</div>
+      `;
+      chart.appendChild(col);
+    });
+  }
+
+  // ── API ───────────────────────────────────────────────────────────────────
   async function fetchStatus() {
     try {
       const res  = await fetch('/api/status');
       const data = await res.json();
       updateUI(data);
-    } catch (e) {
+    } catch(e) {
       document.getElementById('statusBadge').className = 'status-badge offline';
       document.getElementById('statusText').textContent = 'Errore server';
     }
   }
 
+  async function fetchFlowData() {
+    try {
+      const [histRes, seasonRes] = await Promise.all([
+        fetch('/api/flow/history?days=7'),
+        fetch('/api/flow/season')
+      ]);
+      const history = await histRes.json();
+      const season  = await seasonRes.json();
+
+      // Oggi
+      const today = new Date().toISOString().slice(0,10);
+      const todayRow = history.find(d => d.data === today);
+      document.getElementById('todayL').textContent =
+        todayRow ? Number(todayRow.liters).toFixed(1) : '0.0';
+
+      // Stagione
+      document.getElementById('seasonL').textContent =
+        season.total_liters != null ? Number(season.total_liters).toFixed(1) + ' L' : '—';
+      document.getElementById('seasonStart').textContent =
+        season.start_date || '—';
+
+      renderChart(history);
+    } catch(e) { console.error('Flow data error:', e); }
+  }
+
   async function sendCmd(cmd) {
     try {
-      const res = await fetch('/api/cmd', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cmd })
-      });
+      const res  = await fetch('/api/cmd', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cmd}) });
       const data = await res.json();
       if (data.ok) toast(`Comando "${cmd}" inviato ✓`);
       else         toast(data.error || 'Errore', 'err');
-    } catch (e) {
-      toast('Errore di rete', 'err');
-    }
+    } catch(e) { toast('Errore di rete', 'err'); }
   }
 
   async function saveSchedule(fascia) {
     const inizio = document.getElementById(`${fascia}_inizio`).value.split(':');
     const fine   = document.getElementById(`${fascia}_fine`).value.split(':');
     const abil   = document.getElementById(`${fascia}_abilitata`).checked;
-
-    const payload = {
-      [fascia]: {
-        ora_inizio:  parseInt(inizio[0]),
-        min_inizio:  parseInt(inizio[1]),
-        ora_fine:    parseInt(fine[0]),
-        min_fine:    parseInt(fine[1]),
-        abilitata:   abil
-      }
-    };
-
+    const payload = { [fascia]: {
+      ora_inizio: parseInt(inizio[0]), min_inizio: parseInt(inizio[1]),
+      ora_fine:   parseInt(fine[0]),   min_fine:   parseInt(fine[1]),
+      abilitata:  abil
+    }};
     try {
-      const res  = await fetch('/api/schedule', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const res  = await fetch('/api/schedule', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
       const data = await res.json();
       if (data.ok) toast(`Fascia ${fascia} salvata ✓`);
       else         toast(data.error || 'Errore', 'err');
-    } catch (e) {
-      toast('Errore di rete', 'err');
-    }
+    } catch(e) { toast('Errore di rete', 'err'); }
+  }
+
+  async function resetSeason() {
+    if (!confirm('Sei sicuro di voler azzerare il totale stagionale?')) return;
+    try {
+      const res  = await fetch('/api/flow/season/reset', { method:'POST' });
+      const data = await res.json();
+      if (data.ok) { toast('Stagione azzerata ✓'); fetchFlowData(); }
+      else         toast(data.error || 'Errore', 'err');
+    } catch(e) { toast('Errore di rete', 'err'); }
   }
 
   // ── Polling ───────────────────────────────────────────────────────────────
   fetchStatus();
-  setInterval(fetchStatus, 5000);   // aggiorna ogni 5 secondi
+  fetchFlowData();
+  setInterval(fetchStatus,   5000);
+  setInterval(fetchFlowData, 30000);
 </script>
 </body>
 </html>
