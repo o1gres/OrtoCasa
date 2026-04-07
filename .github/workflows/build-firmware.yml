@@ -15,26 +15,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Installa Arduino CLI
-      - name: Installa Arduino CLI
-        uses: arduino/setup-arduino-cli@v1
+      # 2. Configura Python (richiesto da PlatformIO)
+      - name: Configura Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-      # 3. Configura la piattaforma ESP32
-      - name: Configura ESP32 core
-        run: |
-          arduino-cli config init
-          arduino-cli config add board_manager.additional_urls \
-            https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-          arduino-cli core update-index
-          arduino-cli core install esp32:esp32
+      # 3. Installa PlatformIO
+      - name: Installa PlatformIO
+        run: pip install platformio
 
-      # 4. Installa le librerie necessarie
-      - name: Installa librerie Arduino
-        run: |
-          arduino-cli lib install "PubSubClient"
-          arduino-cli lib install "ArduinoJson"
-
-      # 5. Crea config.h dai GitHub Secrets (le credenziali non sono nel repo)
+      # 4. Crea config.h dai GitHub Secrets
       - name: Crea config.h dai secrets
         run: |
           cat > irrigazione_esp32/config.h << EOF
@@ -46,45 +37,43 @@ jobs:
           #define GITHUB_REPO   "${{ github.event.repository.name }}"
           EOF
 
-      # 6. Aggiorna FIRMWARE_VERSION nel .ino con il tag corrente (es: v1.2.3 → 1.2.3)
+      # 5. Aggiorna FIRMWARE_VERSION nel main.cpp con il tag corrente
+      #    es: tag v1.2.3 → versione "1.2.3"
       - name: Aggiorna versione nel firmware
         run: |
           VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"   # rimuove il prefisso 'v'
+          VERSION="${VERSION#v}"
           sed -i "s/#define FIRMWARE_VERSION \".*\"/#define FIRMWARE_VERSION \"${VERSION}\"/" \
-            irrigazione_esp32/irrigazione_esp32.ino
-          echo "Versione firmware: ${VERSION}"
+            irrigazione_esp32/src/main.cpp
+          echo "Versione firmware impostata: ${VERSION}"
 
-      # 7. Compila il firmware
+      # 6. Compila con PlatformIO
       - name: Compila firmware
         run: |
-          arduino-cli compile \
-            --fqbn esp32:esp32:esp32 \
-            --output-dir build/ \
-            irrigazione_esp32/irrigazione_esp32.ino
+          cd irrigazione_esp32
+          platformio run --environment esp32dev
 
-      # 8. Rinomina il .bin con nome fisso (l'ESP32 scarica sempre questo URL)
+      # 7. Copia il .bin con nome fisso (l'ESP32 scarica sempre questo URL)
       - name: Prepara artefatto
         run: |
-          cp build/irrigazione_esp32.ino.bin irrigazione_esp32.bin
+          cp irrigazione_esp32/.pio/build/esp32dev/firmware.bin irrigazione_esp32.bin
           VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#v}"
-          # Aggiorna version.json con la nuova versione
           echo "{\"version\": \"${VERSION}\", \"notes\": \"Release ${VERSION}\"}" \
             > firmware/version.json
 
-      # 9. Commit del version.json aggiornato sul branch main
+      # 8. Commit del version.json aggiornato su main
       - name: Aggiorna version.json su main
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git checkout main
+          git fetch origin main || git fetch origin master
+          git checkout main 2>/dev/null || git checkout master
           git add firmware/version.json
           git commit -m "chore: aggiorna version.json a ${{ github.ref_name }}" || echo "Nessuna modifica"
-          git push origin main
+          git push origin HEAD
 
-      # 10. Crea la GitHub Release e carica il .bin
+      # 9. Crea la GitHub Release e carica il .bin
       - name: Crea Release GitHub
         uses: softprops/action-gh-release@v2
         with:

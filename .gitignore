@@ -10,6 +10,7 @@ build/
 *.elf
 *.map
 !irrigazione_esp32/config.example.h
+irrigazione_esp32/.pio/
 
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
