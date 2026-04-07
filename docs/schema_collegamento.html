@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schema Collegamento — ESP32 + L9110S</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0f0d;
+  --paper:#111a14;
+  --card:#16221a;
+  --border:#1f3328;
+  --green:#3ddc84;
+  --green2:#52ffaa;
+  --amber:#ffd166;
+  --red:#ff6b6b;
+  --blue:#74c7ec;
+  --purple:#cba6f7;
+  --muted:#4a7060;
+  --text:#cfe8d8;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Syne',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;padding:2rem 1rem 4rem;overflow-x:hidden}
+
+h1{font-family:var(--sans);font-size:clamp(1.4rem,4vw,2rem);font-weight:800;color:var(--green);letter-spacing:-.02em;margin-bottom:.3rem}
+.subtitle{color:var(--muted);font-size:.8rem;letter-spacing:.06em;margin-bottom:2.5rem}
+
+/* ── Main layout ── */
+.diagram{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  gap:0;
+  align-items:center;
+  max-width:860px;
+  margin:0 auto 3rem;
+}
+@media(max-width:600px){
+  .diagram{grid-template-columns:1fr;gap:1.5rem}
+  .wires-col{display:none}
+}
+
+/* ── Chip cards ── */
+.chip{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:16px;
+  overflow:hidden;
+}
+.chip-header{
+  background:var(--paper);
+  border-bottom:1px solid var(--border);
+  padding:.6rem 1rem;
+  font-family:var(--sans);
+  font-size:.8rem;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+}
+.chip-body{padding:.5rem 0}
+
+/* ── Pin rows ── */
+.pin-row{
+  display:flex;
+  align-items:center;
+  padding:.28rem .8rem;
+  gap:.5rem;
+  font-size:.72rem;
+  transition:background .15s;
+}
+.pin-row:hover{background:#1a2e22}
+.pin-dot{
+  width:10px;height:10px;
+  border-radius:50%;
+  flex-shrink:0;
+  border:2px solid currentColor;
+}
+.pin-num{
+  background:var(--paper);
+  border:1px solid var(--border);
+  border-radius:5px;
+  padding:.1rem .4rem;
+  font-size:.65rem;
+  color:var(--muted);
+  min-width:2.8rem;
+  text-align:center;
+}
+.pin-name{flex:1;color:var(--text)}
+.pin-desc{color:var(--muted);font-size:.65rem;text-align:right}
+
+/* esp side — pin connector on right */
+.esp-side .pin-row{flex-direction:row-reverse;text-align:right}
+.esp-side .pin-desc{text-align:left}
+
+/* l9110s side — pin connector on left */
+.l9110s-side .pin-row{flex-direction:row}
+
+/* colors per signal */
+.c-red   {color:var(--red)}
+.c-black {color:#778a80}
+.c-green {color:var(--green)}
+.c-amber {color:var(--amber)}
+.c-blue  {color:var(--blue)}
+.c-purple{color:var(--purple)}
+
+/* ── Wires column ── */
+.wires-col{
+  width:120px;
+  position:relative;
+  align-self:stretch;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+svg.wires{width:100%;height:100%;overflow:visible}
+
+/* ── Legend table ── */
+.section-title{
+  font-family:var(--sans);
+  font-size:.75rem;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:.75rem;
+}
+.conn-table{
+  max-width:860px;
+  margin:0 auto 2.5rem;
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
+}
+.conn-table table{width:100%;border-collapse:collapse;font-size:.78rem}
+.conn-table th{
+  background:var(--paper);
+  padding:.55rem .9rem;
+  text-align:left;
+  font-size:.68rem;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--muted);
+  border-bottom:1px solid var(--border);
+}
+.conn-table td{
+  padding:.5rem .9rem;
+  border-bottom:1px solid #111e17;
+  vertical-align:middle;
+}
+.conn-table tr:last-child td{border-bottom:none}
+.conn-table tr:hover td{background:#13201a}
+.wire-swatch{
+  display:inline-block;
+  width:28px;height:4px;
+  border-radius:2px;
+  vertical-align:middle;
+  margin-right:.4rem;
+}
+
+/* ── Notes ── */
+.notes{
+  max-width:860px;
+  margin:0 auto;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:1rem;
+}
+@media(max-width:500px){.notes{grid-template-columns:1fr}}
+.note-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:1rem;
+}
+.note-card .note-title{
+  font-family:var(--sans);
+  font-size:.75rem;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:.5rem;
+}
+.note-card p,.note-card li{font-size:.75rem;color:var(--muted);line-height:1.7}
+.note-card ul{padding-left:1rem}
+.note-card strong{color:var(--text)}
+</style>
+</head>
+<body>
+
+<h1>🔌 Schema Collegamento</h1>
+<div class="subtitle">ESP32-WROOM-32U &nbsp;·&nbsp; L9110S &nbsp;·&nbsp; Elettrovalvola Bistabile</div>
+
+<!-- ── DIAGRAM ── -->
+<div class="diagram">
+
+  <!-- ESP32 -->
+  <div class="chip esp-side">
+    <div class="chip-header" style="justify-content:flex-end">
+      <span>ESP32-WROOM-32U</span> 🟢
+    </div>
+    <div class="chip-body">
+      <div class="pin-row">
+        <div class="pin-dot c-red"></div>
+        <span class="pin-num">3V3</span>
+        <span class="pin-name">3.3V</span>
+        <span class="pin-desc">alimentazione logica</span>
+      </div>
+      <div class="pin-row">
+        <div class="pin-dot c-black"></div>
+        <span class="pin-num">GND</span>
+        <span class="pin-name">GND</span>
+        <span class="pin-desc">massa comune ⬇</span>
+      </div>
+      <div class="pin-row" style="background:#1a2e1a">
+        <div class="pin-dot c-green"></div>
+        <span class="pin-num">GPIO 26</span>
+        <span class="pin-name">IA →</span>
+        <span class="pin-desc">segnale A (apri)</span>
+      </div>
+      <div class="pin-row" style="background:#1a2e1a">
+        <div class="pin-dot c-amber"></div>
+        <span class="pin-num">GPIO 27</span>
+        <span class="pin-name">IB →</span>
+        <span class="pin-desc">segnale B (chiudi)</span>
+      </div>
+      <div class="pin-row">
+        <div class="pin-dot c-blue"></div>
+        <span class="pin-num">VIN / 5V</span>
+        <span class="pin-name">VCC motor →</span>
+        <span class="pin-desc">oppure alimentazione esterna*</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Wires SVG -->
+  <div class="wires-col">
+    <svg class="wires" viewBox="0 0 120 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- GND -->
+      <line x1="0" y1="62" x2="120" y2="62" stroke="#778a80" stroke-width="2.5" stroke-dasharray="6 3"/>
+      <!-- IA green -->
+      <line x1="0" y1="100" x2="120" y2="100" stroke="#3ddc84" stroke-width="2.5"/>
+      <!-- IB amber -->
+      <line x1="0" y1="138" x2="120" y2="138" stroke="#ffd166" stroke-width="2.5"/>
+      <!-- VCC blue -->
+      <line x1="0" y1="176" x2="120" y2="176" stroke="#74c7ec" stroke-width="2.5"/>
+      <!-- Valve purple -->
+      <line x1="30" y1="220" x2="90" y2="220" stroke="#cba6f7" stroke-width="2" stroke-dasharray="5 3"/>
+      <text x="60" y="215" text-anchor="middle" font-family="JetBrains Mono" font-size="8" fill="#4a7060">valvola</text>
+      <!-- Dots at connection points -->
+      <circle cx="0"   cy="62"  r="3.5" fill="#778a80"/>
+      <circle cx="120" cy="62"  r="3.5" fill="#778a80"/>
+      <circle cx="0"   cy="100" r="3.5" fill="#3ddc84"/>
+      <circle cx="120" cy="100" r="3.5" fill="#3ddc84"/>
+      <circle cx="0"   cy="138" r="3.5" fill="#ffd166"/>
+      <circle cx="120" cy="138" r="3.5" fill="#ffd166"/>
+      <circle cx="0"   cy="176" r="3.5" fill="#74c7ec"/>
+      <circle cx="120" cy="176" r="3.5" fill="#74c7ec"/>
+    </svg>
+  </div>
+
+  <!-- L9110S -->
+  <div class="chip l9110s-side">
+    <div class="chip-header">
+      🔵 <span>L9110S H-Bridge</span>
+    </div>
+    <div class="chip-body">
+      <div class="pin-row">
+        <div class="pin-dot c-blue"></div>
+        <span class="pin-num">VCC</span>
+        <span class="pin-name">VCC</span>
+        <span class="pin-desc">2.5V–12V motore</span>
+      </div>
+      <div class="pin-row">
+        <div class="pin-dot c-black"></div>
+        <span class="pin-num">GND</span>
+        <span class="pin-name">GND</span>
+        <span class="pin-desc">massa comune ⬇</span>
+      </div>
+      <div class="pin-row" style="background:#1a2e1a">
+        <div class="pin-dot c-green"></div>
+        <span class="pin-num">IA</span>
+        <span class="pin-name">← IA</span>
+        <span class="pin-desc">da GPIO 26</span>
+      </div>
+      <div class="pin-row" style="background:#1a2e1a">
+        <div class="pin-dot c-amber"></div>
+        <span class="pin-num">IB</span>
+        <span class="pin-name">← IB</span>
+        <span class="pin-desc">da GPIO 27</span>
+      </div>
+      <div class="pin-row">
+        <div class="pin-dot c-purple"></div>
+        <span class="pin-num">OA</span>
+        <span class="pin-name">→ Valvola filo 1</span>
+        <span class="pin-desc"></span>
+      </div>
+      <div class="pin-row">
+        <div class="pin-dot c-purple"></div>
+        <span class="pin-num">OB</span>
+        <span class="pin-name">→ Valvola filo 2</span>
+        <span class="pin-desc"></span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── CONNECTION TABLE ── -->
+<div class="section-title" style="max-width:860px;margin:0 auto .75rem">📋 Tabella Connessioni</div>
+<div class="conn-table">
+  <table>
+    <thead>
+      <tr>
+        <th>Da (ESP32)</th>
+        <th>A (L9110S)</th>
+        <th>Colore consigliato</th>
+        <th>Note</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>VIN / 5V</strong></td>
+        <td><strong>VCC</strong></td>
+        <td><span class="wire-swatch" style="background:#74c7ec"></span>Blu</td>
+        <td>Usa alimentazione esterna se la valvola supera 500mA</td>
+      </tr>
+      <tr>
+        <td><strong>GND</strong></td>
+        <td><strong>GND</strong></td>
+        <td><span class="wire-swatch" style="background:#778a80"></span>Nero</td>
+        <td>Massa comune obbligatoria tra ESP32 e L9110S</td>
+      </tr>
+      <tr>
+        <td><strong>GPIO 26</strong></td>
+        <td><strong>IA</strong></td>
+        <td><span class="wire-swatch" style="background:#3ddc84"></span>Verde</td>
+        <td>Impulso HIGH = apre la valvola (300ms)</td>
+      </tr>
+      <tr>
+        <td><strong>GPIO 27</strong></td>
+        <td><strong>IB</strong></td>
+        <td><span class="wire-swatch" style="background:#ffd166"></span>Giallo/Arancio</td>
+        <td>Impulso HIGH = chiude la valvola (300ms)</td>
+      </tr>
+      <tr>
+        <td colspan="2"><strong>L9110S OA → Valvola filo 1<br>L9110S OB → Valvola filo 2</strong></td>
+        <td><span class="wire-swatch" style="background:#cba6f7"></span>Viola</td>
+        <td>Polarità invertibile — se la valvola si comporta al contrario, scambia OA e OB</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── NOTES ── -->
+<div class="notes">
+  <div class="note-card">
+    <div class="note-title" style="color:var(--amber)">⚡ Alimentazione</div>
+    <ul>
+      <li>Il L9110S accetta <strong>2.5V–12V</strong> sul pin VCC</li>
+      <li>Se la tua valvola funziona a <strong>12V</strong>, usa un alimentatore esterno e collega solo il GND in comune con l'ESP32</li>
+      <li>Se funziona a <strong>5V</strong>, puoi usare direttamente il pin VIN dell'ESP32 (alimentato via USB)</li>
+      <li>Corrente massima L9110S: <strong>800mA per canale</strong></li>
+    </ul>
+  </div>
+  <div class="note-card">
+    <div class="note-title" style="color:var(--green)">🔄 Elettrovalvola bistabile</div>
+    <ul>
+      <li>La valvola bistabile <strong>mantiene la posizione</strong> senza alimentazione continua</li>
+      <li>Riceve un <strong>impulso breve</strong> per aprire e uno per chiudere</li>
+      <li>Durata impulso nel codice: <strong>300ms</strong> (costante <code>PULSE_MS</code>)</li>
+      <li>Se la valvola non commuta, prova ad aumentare a <strong>500ms</strong></li>
+      <li>Se apre quando dovrebbe chiudere: <strong>scambia OA e OB</strong></li>
+    </ul>
+  </div>
+  <div class="note-card">
+    <div class="note-title" style="color:var(--blue)">📡 Antenna esterna</div>
+    <ul>
+      <li>Il WROOM-32<strong>U</strong> ha il connettore U.FL per antenna esterna</li>
+      <li>Collega un'antenna esterna se il segnale Wi-Fi è debole (orto lontano dal router)</li>
+      <li>Senza antenna collegata il modulo <strong>non trasmette</strong></li>
+    </ul>
+  </div>
+  <div class="note-card">
+    <div class="note-title" style="color:var(--red)">⚠️ Attenzione</div>
+    <ul>
+      <li>Non collegare mai <strong>IA e IB HIGH contemporaneamente</strong> — cortocircuito sul ponte H</li>
+      <li>Il codice gestisce questo correttamente (un PIN alla volta)</li>
+      <li>Aggiungi un <strong>diodo di ricircolo</strong> in parallelo alla valvola se noti disturbi</li>
+      <li>I GPIO dell'ESP32 sono a <strong>3.3V logici</strong> — il L9110S è compatibile</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>
