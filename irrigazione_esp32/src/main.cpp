@@ -275,7 +275,7 @@ void mqttConnect() {
   while (!mqtt.connected()) {
     Serial.print("[MQTT] Connessione...");
     String clientId = "ESP32-Irrigazione-" + String((uint32_t)ESP.getEfuseMac(), HEX);
-    bool ok = mqtt.connect(clientId.c_str(), nullptr, nullptr,
+    bool ok = mqtt.connect(clientId.c_str(), MQTT_USER, MQTT_PASS,
                            TOPIC_HEARTBEAT, 1, true, "{\"online\":false}");
     if (ok) {
       Serial.println(" OK");

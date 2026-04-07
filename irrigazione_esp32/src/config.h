@@ -5,6 +5,8 @@
 // ── MQTT ──────────────────────────────────────────────────────────────────────
 #define MQTT_BROKER    "192.168.1.250"   // IP del Raspberry Pi nella tua LAN
 #define MQTT_PORT      1883
+#define MQTT_USER      "sergio"
+#define MQTT_PASS      "grazieSergi0"
 
 // ── OTA — GitHub ──────────────────────────────────────────────────────────────
 // Inserisci il tuo username GitHub e il nome del repository

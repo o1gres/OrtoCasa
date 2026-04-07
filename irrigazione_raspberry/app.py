@@ -10,14 +10,17 @@ import json
 import threading
 import time
 from datetime import datetime
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
 app = Flask(__name__)
 
 # ── Configurazione ────────────────────────────────────────────────────────────
-MQTT_BROKER   = "localhost"   # broker Mosquitto sullo stesso Raspberry
-MQTT_PORT     = 1883
-MQTT_USER     = ""            # lascia vuoto se non hai auth
-MQTT_PASS     = ""
+MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
+MQTT_PORT   = int(os.getenv("MQTT_PORT", 1883))
+MQTT_USER   = os.getenv("MQTT_USER", "")
+MQTT_PASS   = os.getenv("MQTT_PASS", "")
 
 TOPIC_CMD       = "irrigazione/cmd"
 TOPIC_SCHEDULE  = "irrigazione/schedule"
