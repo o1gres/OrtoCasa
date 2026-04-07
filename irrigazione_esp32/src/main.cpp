@@ -21,11 +21,7 @@
 // ── Versione firmware (aggiorna ad ogni release) ──────────────────────────────
 #define FIRMWARE_VERSION "1.0.0"
 
-// ── URL OTA (costruiti da GITHUB_USER e GITHUB_REPO definiti in config.h) ─────
-#define OTA_VERSION_URL  "https://raw.githubusercontent.com/" GITHUB_USER "/" GITHUB_REPO "/main/firmware/version.json"
-#define OTA_BIN_URL      "https://github.com/" GITHUB_USER "/" GITHUB_REPO "/releases/latest/download/irrigazione_esp32.bin"
-
-// Controlla aggiornamenti ogni ora
+// ── Controlla aggiornamenti ogni ora ─────────────────────────────────────────
 #define OTA_CHECK_INTERVAL  3600000UL
 
 // ── PIN ponte H L9110S ────────────────────────────────────────────────────────
@@ -40,13 +36,28 @@ const char* TOPIC_STATUS    = "irrigazione/status";
 const char* TOPIC_HEARTBEAT = "irrigazione/heartbeat";
 const char* TOPIC_OTA       = "irrigazione/ota";
 
+// ── URL OTA costruiti a runtime da config.h ───────────────────────────────────
+// Esempio risultante:
+//   https://raw.githubusercontent.com/o1gres/OrtoCasa/main/firmware/version.json
+//   https://github.com/o1gres/OrtoCasa/releases/latest/download/irrigazione_esp32.bin
+String getOtaVersionUrl() {
+  return String("https://raw.githubusercontent.com/")
+       + GITHUB_USER + "/" + GITHUB_REPO
+       + "/main/firmware/version.json";
+}
+String getOtaBinUrl() {
+  return String("https://github.com/")
+       + GITHUB_USER + "/" + GITHUB_REPO
+       + "/releases/latest/download/irrigazione_esp32.bin";
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 WiFiClient       wifiClient;
 WiFiClientSecure wifiClientSecure;
 PubSubClient     mqtt(wifiClient);
 
-bool valveOpen    = false;
+bool valveOpen     = false;
 bool otaInProgress = false;
 
 struct Fascia {
@@ -85,7 +96,7 @@ void closeValve() { if (valveOpen)   valveImpulse(false); }
 
 // ── OTA ───────────────────────────────────────────────────────────────────────
 void publishOtaStatus(const char* stato, const char* msg = "") {
-  StaticJsonDocument<200> doc;
+  JsonDocument doc;
   doc["stato"]   = stato;
   doc["version"] = FIRMWARE_VERSION;
   if (strlen(msg) > 0) doc["msg"] = msg;
@@ -111,10 +122,13 @@ void checkAndUpdate() {
   Serial.println("[OTA] Controllo aggiornamenti...");
   publishOtaStatus("checking");
 
-  wifiClientSecure.setInsecure();   // accetta qualsiasi cert (LAN domestica)
+  wifiClientSecure.setInsecure();
 
   HTTPClient http;
-  http.begin(wifiClientSecure, OTA_VERSION_URL);
+  String versionUrl = getOtaVersionUrl();
+  Serial.printf("[OTA] URL versione: %s\n", versionUrl.c_str());
+
+  http.begin(wifiClientSecure, versionUrl);
   http.setTimeout(10000);
   int code = http.GET();
 
@@ -128,7 +142,7 @@ void checkAndUpdate() {
   String body = http.getString();
   http.end();
 
-  StaticJsonDocument<128> doc;
+  JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     publishOtaStatus("error", "version.json malformato");
     return;
@@ -143,12 +157,11 @@ void checkAndUpdate() {
     return;
   }
 
-  // Nuova versione trovata
   Serial.printf("[OTA] Nuova versione %s — avvio download...\n", remoteVer);
   publishOtaStatus("updating", remoteVer);
-  mqtt.loop();   // assicura che il messaggio venga inviato prima dell'update
+  mqtt.loop();
 
-  closeValve();  // sicurezza: chiudi prima di riavviarti
+  closeValve();
   otaInProgress = true;
 
   httpUpdate.onProgress([](int cur, int total) {
@@ -157,7 +170,10 @@ void checkAndUpdate() {
   });
 
   wifiClientSecure.setInsecure();
-  t_httpUpdate_return ret = httpUpdate.update(wifiClientSecure, OTA_BIN_URL);
+  String binUrl = getOtaBinUrl();
+  Serial.printf("[OTA] URL bin: %s\n", binUrl.c_str());
+
+  t_httpUpdate_return ret = httpUpdate.update(wifiClientSecure, binUrl);
 
   switch (ret) {
     case HTTP_UPDATE_FAILED:
@@ -172,14 +188,14 @@ void checkAndUpdate() {
       otaInProgress = false;
       break;
     case HTTP_UPDATE_OK:
-      // L'ESP32 si riavvia automaticamente — questo punto non viene raggiunto
+      // ESP32 si riavvia automaticamente
       break;
   }
 }
 
 // ── MQTT ──────────────────────────────────────────────────────────────────────
 void publishStatus() {
-  StaticJsonDocument<256> doc;
+  JsonDocument doc;
   doc["valve"]            = valveOpen ? "open" : "closed";
   doc["wifi_rssi"]        = WiFi.RSSI();
   doc["firmware_version"] = FIRMWARE_VERSION;
@@ -196,7 +212,7 @@ void publishStatus() {
 }
 
 void publishHeartbeat() {
-  StaticJsonDocument<128> doc;
+  JsonDocument doc;
   doc["online"]           = true;
   doc["uptime_s"]         = millis() / 1000;
   doc["firmware_version"] = FIRMWARE_VERSION;
@@ -206,28 +222,28 @@ void publishHeartbeat() {
 }
 
 void handleCommand(const char* payload) {
-  StaticJsonDocument<200> doc;
+  JsonDocument doc;
   if (deserializeJson(doc, payload) != DeserializationError::Ok) return;
   const char* cmd = doc["cmd"];
   if (!cmd) return;
   if (strcmp(cmd, "open")   == 0) openValve();
   if (strcmp(cmd, "close")  == 0) closeValve();
   if (strcmp(cmd, "status") == 0) publishStatus();
-  if (strcmp(cmd, "ota")    == 0) checkAndUpdate();  // trigger manuale da MQTT
+  if (strcmp(cmd, "ota")    == 0) checkAndUpdate();
 }
 
 void handleSchedule(const char* payload) {
-  StaticJsonDocument<300> doc;
+  JsonDocument doc;
   if (deserializeJson(doc, payload) != DeserializationError::Ok) return;
 
-  if (doc.containsKey("mattina")) {
+  if (doc["mattina"].is<JsonObject>()) {
     fasciaMattina.oraInizio = doc["mattina"]["ora_inizio"] | fasciaMattina.oraInizio;
     fasciaMattina.minInizio = doc["mattina"]["min_inizio"] | fasciaMattina.minInizio;
     fasciaMattina.oraFine   = doc["mattina"]["ora_fine"]   | fasciaMattina.oraFine;
     fasciaMattina.minFine   = doc["mattina"]["min_fine"]   | fasciaMattina.minFine;
     fasciaMattina.abilitata = doc["mattina"]["abilitata"]  | fasciaMattina.abilitata;
   }
-  if (doc.containsKey("sera")) {
+  if (doc["sera"].is<JsonObject>()) {
     fasciasSera.oraInizio = doc["sera"]["ora_inizio"] | fasciasSera.oraInizio;
     fasciasSera.minInizio = doc["sera"]["min_inizio"] | fasciasSera.minInizio;
     fasciasSera.oraFine   = doc["sera"]["ora_fine"]   | fasciasSera.oraFine;
@@ -318,7 +334,7 @@ void setup() {
   mqtt.setKeepAlive(60);
   mqttConnect();
 
-  // Primo OTA check 30s dopo il boot (aspetta rete stabile)
+  // Primo OTA check 30s dopo il boot
   lastOtaCheck = millis() - OTA_CHECK_INTERVAL + 30000UL;
 }
 
