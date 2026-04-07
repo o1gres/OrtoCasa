@@ -36,6 +36,9 @@ const char* TOPIC_STATUS    = "irrigazione/status";
 const char* TOPIC_HEARTBEAT = "irrigazione/heartbeat";
 const char* TOPIC_OTA       = "irrigazione/ota";
 
+unsigned long lastMqttRetry    = 0;
+const unsigned long MQTT_RETRY_INTERVAL = 10000UL;  // riprova ogni 10s
+
 // ── URL OTA costruiti a runtime da config.h ───────────────────────────────────
 // Esempio risultante:
 //   https://raw.githubusercontent.com/o1gres/OrtoCasa/main/firmware/version.json
@@ -43,7 +46,7 @@ const char* TOPIC_OTA       = "irrigazione/ota";
 String getOtaVersionUrl() {
   return String("https://raw.githubusercontent.com/")
        + GITHUB_USER + "/" + GITHUB_REPO
-       + "/main/firmware/version.json";
+       + "/master/firmware/version.json";
 }
 String getOtaBinUrl() {
   return String("https://github.com/")
@@ -172,7 +175,7 @@ void checkAndUpdate() {
   wifiClientSecure.setInsecure();
   String binUrl = getOtaBinUrl();
   Serial.printf("[OTA] URL bin: %s\n", binUrl.c_str());
-
+  httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
   t_httpUpdate_return ret = httpUpdate.update(wifiClientSecure, binUrl);
 
   switch (ret) {
@@ -272,21 +275,20 @@ void mqttCallback(char* topic, byte* message, unsigned int length) {
 }
 
 void mqttConnect() {
-  while (!mqtt.connected()) {
-    Serial.print("[MQTT] Connessione...");
-    String clientId = "ESP32-Irrigazione-" + String((uint32_t)ESP.getEfuseMac(), HEX);
-    bool ok = mqtt.connect(clientId.c_str(), MQTT_USER, MQTT_PASS,
-                           TOPIC_HEARTBEAT, 1, true, "{\"online\":false}");
-    if (ok) {
-      Serial.println(" OK");
-      mqtt.subscribe(TOPIC_CMD);
-      mqtt.subscribe(TOPIC_SCHEDULE);
-      publishStatus();
-      publishHeartbeat();
-    } else {
-      Serial.printf(" Errore %d, riprovo tra 5s\n", mqtt.state());
-      delay(5000);
-    }
+  if (mqtt.connected()) return;
+  
+  Serial.print("[MQTT] Connessione...");
+  String clientId = "ESP32-Irrigazione-" + String((uint32_t)ESP.getEfuseMac(), HEX);
+  bool ok = mqtt.connect(clientId.c_str(), MQTT_USER, MQTT_PASS,
+                         TOPIC_HEARTBEAT, 1, true, "{\"online\":false}");
+  if (ok) {
+    Serial.println(" OK");
+    mqtt.subscribe(TOPIC_CMD);
+    mqtt.subscribe(TOPIC_SCHEDULE);
+    publishStatus();
+    publishHeartbeat();
+  } else {
+    Serial.printf(" Errore %d, riprovo al prossimo ciclo\n", mqtt.state());
   }
 }
 
@@ -313,7 +315,13 @@ void wifiConnect() {
   Serial.printf("[WiFi] Connessione a %s", WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
+  
+    // Forza DNS Google
+  WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(),
+              IPAddress(8,8,8,8), IPAddress(8,8,4,4));
+  
   Serial.printf("\n[WiFi] Connesso! IP: %s\n", WiFi.localIP().toString().c_str());
+  Serial.printf("[DNS] DNS: %s\n", WiFi.dnsIP().toString().c_str());
 }
 
 // ── Setup & Loop ──────────────────────────────────────────────────────────────
@@ -327,6 +335,10 @@ void setup() {
   digitalWrite(PIN_IB, LOW);
 
   wifiConnect();
+
+  Serial.printf("[DNS] DNS primario: %s\n", WiFi.dnsIP().toString().c_str());
+  Serial.printf("[DNS] Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
+
   configTime(3600, 3600, "pool.ntp.org");
 
   mqtt.setServer(MQTT_BROKER, MQTT_PORT);
@@ -343,10 +355,12 @@ void loop() {
     Serial.println("[WiFi] Disconnesso, riconnessione...");
     wifiConnect();
   }
-  if (!mqtt.connected()) mqttConnect();
-  mqtt.loop();
-
   unsigned long now = millis();
+  if (!mqtt.connected() && now - lastMqttRetry >= MQTT_RETRY_INTERVAL) {
+    lastMqttRetry = now;
+    mqttConnect();
+  }
+  if (mqtt.connected()) mqtt.loop();
 
   if (now - lastHeartbeat >= HEARTBEAT_INTERVAL) {
     lastHeartbeat = now;
