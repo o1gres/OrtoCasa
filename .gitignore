@@ -2,12 +2,14 @@
 irrigazione_esp32/config.h
 .env
 *.env.*
+!irrigazione_raspberry/.env.example
 
 # ── Build Arduino / ESP32 ─────────────────────────────────────────────────────
 build/
 *.bin
 *.elf
 *.map
+!irrigazione_esp32/config.example.h
 
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
