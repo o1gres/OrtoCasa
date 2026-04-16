@@ -11,7 +11,7 @@
     :root{
       --bg:#0a0f0d; --surface:#111a14; --surface2:#16221a; --border:#1f3328;
       --green:#3ddc84; --green2:#166534; --amber:#fbbf24; --red:#f87171;
-      --blue:#74c7ec; --text:#cfe8d8; --muted:#4a7060;
+      --text:#cfe8d8; --muted:#4a7060;
       --mono:'DM Mono',monospace; --sans:'Syne',sans-serif;
     }
     body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;padding:1.5rem 1rem 4rem}
@@ -82,23 +82,23 @@
 
     /* ── Mode switcher ── */
     .mode-switcher{display:flex;gap:.5rem;margin-bottom:1.2rem}
-    .mode-btn{flex:1;padding:.55rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:var(--mono);font-size:.75rem;cursor:pointer;transition:all .2s;text-align:center;letter-spacing:.04em}
+    .mode-btn{flex:1;padding:.55rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:var(--mono);font-size:.75rem;cursor:pointer;transition:all .2s;text-align:center;letter-spacing:.04em;user-select:none}
     .mode-btn.active{background:var(--green2);border-color:var(--green);color:var(--green)}
 
-    /* ── Giorni settimana ── */
+    /* ── Giorni griglia ── */
     .days-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:.35rem;margin-bottom:1rem}
-    @media(max-width:400px){.days-grid{grid-template-columns:repeat(4,1fr)}}
-    .day-btn{padding:.4rem .2rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:var(--mono);font-size:.68rem;cursor:pointer;text-align:center;transition:all .2s;user-select:none}
-    .day-btn.active{background:var(--green2);border-color:var(--green);color:var(--green)}
+    @media(max-width:460px){.days-grid{grid-template-columns:repeat(4,1fr)}}
+    .day-btn{padding:.45rem .2rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:var(--mono);font-size:.68rem;cursor:pointer;text-align:center;transition:all .2s;user-select:none}
+    .day-btn.enabled{border-color:var(--green2);color:var(--green);background:#0f2318}
+    .day-btn.selected{border-color:var(--green);background:var(--green2);color:var(--green);font-weight:600}
 
     /* ── Day editor ── */
-    .day-editor{display:none}
-    .day-editor.visible{display:block}
-    .day-tabs{display:flex;gap:.35rem;margin-bottom:.75rem;overflow-x:auto}
-    .day-tab{padding:.35rem .7rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:.7rem;cursor:pointer;white-space:nowrap;transition:all .2s}
+    .day-tabs{display:flex;gap:.3rem;margin-bottom:.75rem;overflow-x:auto;padding-bottom:.2rem}
+    .day-tab{padding:.3rem .65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:.68rem;cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0}
     .day-tab.active{background:var(--green2);border-color:var(--green);color:var(--green)}
+    .day-tab.enabled{border-color:var(--green2);color:var(--green)}
 
-    /* ── Fascia editor ── */
+    /* ── Fascia ── */
     .fascia-block{margin-bottom:.75rem;padding:.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px}
     .fascia-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem}
     .fascia-title{font-size:.75rem;font-weight:500;letter-spacing:.05em}
@@ -115,7 +115,7 @@
     .toggle input:checked+.toggle-track{background:var(--green2);border-color:var(--green)}
     .toggle input:checked+.toggle-track::after{transform:translateX(18px);background:var(--green)}
 
-    /* ── Save btn ── */
+    /* ── Save ── */
     .btn-save{width:100%;padding:.65rem;background:transparent;border:1px solid var(--green);border-radius:10px;color:var(--green);font-family:var(--mono);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .2s;margin-top:.5rem}
     .btn-save:hover{background:#3ddc8415}
 
@@ -156,7 +156,7 @@
     </div>
   </div>
 
-  <!-- Flusso -->
+  <!-- Acqua -->
   <div class="card">
     <div class="card-title">💧 Acqua</div>
     <div class="stat-grid">
@@ -190,7 +190,6 @@
   <div class="card wide">
     <div class="card-title">🗓️ Programmazione</div>
 
-    <!-- Selettore modalità -->
     <div class="mode-switcher">
       <div class="mode-btn active" id="modeFixed" onclick="setMode('fixed')">📅 Giorni fissi</div>
       <div class="mode-btn" id="modeAlt" onclick="setMode('alternate')">🔄 Giorno sì/no</div>
@@ -199,44 +198,36 @@
     <!-- Modalità A: giorni fissi -->
     <div id="panelFixed">
       <p style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">
-        Seleziona i giorni attivi, poi configura gli orari per ogni giorno.
+        Clicca un giorno per configurarne gli orari. Attiva il toggle "Giorno attivo" per includerlo nell'irrigazione.
       </p>
-
-      <!-- Selezione giorni -->
-      <div class="days-grid" id="daysGrid">
-        <!-- generato da JS -->
-      </div>
-
-      <!-- Editor per il giorno selezionato -->
-      <div class="day-editor" id="dayEditor">
-        <div class="day-tabs" id="dayTabs"></div>
-        <div id="dayEditorContent"></div>
-      </div>
+      <div class="days-grid" id="daysGrid"></div>
+      <div class="day-tabs" id="dayTabs"></div>
+      <div id="dayEditorContent"></div>
     </div>
 
     <!-- Modalità B: giorno sì/no -->
     <div id="panelAlt" style="display:none">
       <p style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">
-        L'irrigazione si attiva un giorno sì e un giorno no. Configura gli orari comuni.
+        Irrigazione a giorni alterni. Configura gli orari comuni a tutti i giorni "sì".
       </p>
       <div class="fascia-block">
         <div class="fascia-header">
           <span class="fascia-title">🌅 Mattina</span>
-          <label class="toggle"><input type="checkbox" id="alt_mattina_ab"><span class="toggle-track"></span></label>
+          <label class="toggle"><input type="checkbox" id="alt_mat_ab"><span class="toggle-track"></span></label>
         </div>
         <div class="time-row">
-          <div class="time-group"><label>Inizio</label><input type="time" class="time-input" id="alt_mattina_inizio" value="06:00"></div>
-          <div class="time-group"><label>Fine</label><input type="time" class="time-input" id="alt_mattina_fine" value="06:30"></div>
+          <div class="time-group"><label>Inizio</label><input type="time" class="time-input" id="alt_mat_i" value="06:00"></div>
+          <div class="time-group"><label>Fine</label><input type="time" class="time-input" id="alt_mat_f" value="06:30"></div>
         </div>
       </div>
       <div class="fascia-block">
         <div class="fascia-header">
           <span class="fascia-title">🌆 Sera</span>
-          <label class="toggle"><input type="checkbox" id="alt_sera_ab"><span class="toggle-track"></span></label>
+          <label class="toggle"><input type="checkbox" id="alt_ser_ab"><span class="toggle-track"></span></label>
         </div>
         <div class="time-row">
-          <div class="time-group"><label>Inizio</label><input type="time" class="time-input" id="alt_sera_inizio" value="19:00"></div>
-          <div class="time-group"><label>Fine</label><input type="time" class="time-input" id="alt_sera_fine" value="19:30"></div>
+          <div class="time-group"><label>Inizio</label><input type="time" class="time-input" id="alt_ser_i" value="19:00"></div>
+          <div class="time-group"><label>Fine</label><input type="time" class="time-input" id="alt_ser_f" value="19:30"></div>
         </div>
       </div>
     </div>
@@ -251,18 +242,22 @@
 
 <script>
   const GIORNI = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
-  let currentMode    = 'fixed';
-  let selectedDayIdx = 1; // Lunedì di default
+
+  // ── Stato UI ───────────────────────────────────────────────────────────────
+  let currentMode     = 'fixed';
+  let userEditingMode = false;   // impedisce al polling di sovrascrivere la modalità scelta
+  let selectedDayIdx  = 1;       // Lunedì di default
+
   let schedule = {
     mode: 'fixed',
-    days: GIORNI.map((_,i) => ({
+    days: GIORNI.map((_, i) => ({
       day: i, abilitato: false,
-      mattina: {ora_inizio:6,min_inizio:0,ora_fine:6,min_fine:30,abilitata:false},
-      sera:    {ora_inizio:19,min_inizio:0,ora_fine:19,min_fine:30,abilitata:false}
+      mattina: {ora_inizio:6,  min_inizio:0, ora_fine:6,  min_fine:30, abilitata:false},
+      sera:    {ora_inizio:19, min_inizio:0, ora_fine:19, min_fine:30, abilitata:false}
     })),
     alternate: {
-      mattina: {ora_inizio:6,min_inizio:0,ora_fine:6,min_fine:30,abilitata:false},
-      sera:    {ora_inizio:19,min_inizio:0,ora_fine:19,min_fine:30,abilitata:false}
+      mattina: {ora_inizio:6,  min_inizio:0, ora_fine:6,  min_fine:30, abilitata:false},
+      sera:    {ora_inizio:19, min_inizio:0, ora_fine:19, min_fine:30, abilitata:false}
     }
   };
 
@@ -275,79 +270,73 @@
   function pad(n) { return String(n).padStart(2,'0'); }
   function uptimeStr(s) {
     if (!s) return '—';
-    const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+    const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
     if(h>0) return `${h}h ${pad(m)}m`;
     if(m>0) return `${m}m ${pad(sec)}s`;
     return `${sec}s`;
   }
   function timeVal(ora, min) { return `${pad(ora)}:${pad(min)}`; }
   function parseTime(str) {
-    const [h,m] = str.split(':').map(Number);
+    const [h, m] = str.split(':').map(Number);
     return {h, m};
   }
 
   // ── Modalità ───────────────────────────────────────────────────────────────
   function setMode(mode) {
-    currentMode = mode;
-    document.getElementById('modeFixed').className = 'mode-btn' + (mode==='fixed'?' active':'');
-    document.getElementById('modeAlt').className   = 'mode-btn' + (mode==='alternate'?' active':'');
-    document.getElementById('panelFixed').style.display = mode==='fixed' ? 'block' : 'none';
+    currentMode     = mode;
+    userEditingMode = true;
+    document.getElementById('modeFixed').className = 'mode-btn' + (mode==='fixed'   ? ' active' : '');
+    document.getElementById('modeAlt').className   = 'mode-btn' + (mode==='alternate'? ' active' : '');
+    document.getElementById('panelFixed').style.display = mode==='fixed'     ? 'block' : 'none';
     document.getElementById('panelAlt').style.display   = mode==='alternate' ? 'block' : 'none';
   }
 
-  // ── Render griglia giorni ──────────────────────────────────────────────────
+  // ── Griglia 7 giorni ───────────────────────────────────────────────────────
   function renderDaysGrid() {
     const grid = document.getElementById('daysGrid');
     grid.innerHTML = '';
     schedule.days.forEach((d, i) => {
       const btn = document.createElement('div');
-      btn.className = 'day-btn' + (d.abilitato ? ' active' : '');
-      btn.id = `dayBtn${i}`;
-      btn.innerHTML = `<div>${GIORNI[i]}</div>`;
-      btn.onclick = () => selectDay(i);
+      let cls = 'day-btn';
+      if (d.abilitato)        cls += ' enabled';
+      if (i === selectedDayIdx) cls += ' selected';
+      btn.className   = cls;
+      btn.textContent = GIORNI[i];
+      btn.onclick     = () => { selectedDayIdx = i; renderDaysGrid(); };
       grid.appendChild(btn);
     });
-    renderDayEditor();
+    renderDayTabs();
+    renderDayEditorContent();
   }
 
-  function selectDay(idx) {
-    selectedDayIdx = idx;
-    renderDaysGrid();
-  }
-
-  // ── Editor giorno selezionato ──────────────────────────────────────────────
-  function renderDayEditor() {
-    const editor  = document.getElementById('dayEditor');
-    const tabs    = document.getElementById('dayTabs');
-    const content = document.getElementById('dayEditorContent');
-
-    editor.className = 'day-editor visible';
-
-    // Tabs giorni abilitati + giorno selezionato
-    const visibleDays = schedule.days.filter(d => d.abilitato || d.day === selectedDayIdx);
-    if (visibleDays.length === 0) {
-      tabs.innerHTML = '';
-      content.innerHTML = '<p style="font-size:.75rem;color:var(--muted)">Seleziona almeno un giorno sopra per configurare gli orari.</p>';
-      return;
-    }
-
+  // ── Tab giorni ─────────────────────────────────────────────────────────────
+  function renderDayTabs() {
+    const tabs = document.getElementById('dayTabs');
     tabs.innerHTML = '';
-    visibleDays.forEach(d => {
+    schedule.days.forEach((d, i) => {
       const tab = document.createElement('div');
-      tab.className = 'day-tab' + (d.day === selectedDayIdx ? ' active' : '');
-      tab.textContent = GIORNI[d.day];
-      tab.onclick = () => selectDay(d.day);
+      let cls = 'day-tab';
+      if (d.abilitato)        cls += ' enabled';
+      if (i === selectedDayIdx) cls += ' active';
+      tab.className   = cls;
+      tab.textContent = GIORNI[i];
+      tab.onclick     = () => { selectedDayIdx = i; renderDaysGrid(); };
       tabs.appendChild(tab);
     });
+  }
 
-    const d = schedule.days[selectedDayIdx];
+  // ── Editor contenuto giorno ────────────────────────────────────────────────
+  function renderDayEditorContent() {
+    const content = document.getElementById('dayEditorContent');
+    const d       = schedule.days[selectedDayIdx];
     content.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
         <span style="font-family:var(--sans);font-weight:700;font-size:.9rem">${GIORNI[selectedDayIdx]}</span>
         <label style="display:flex;align-items:center;gap:.5rem;font-size:.75rem;color:var(--muted)">
           Giorno attivo
           <label class="toggle">
-            <input type="checkbox" id="dayActive" ${d.abilitato?'checked':''} onchange="toggleDay(${selectedDayIdx})">
+            <input type="checkbox" id="dayActive" ${d.abilitato?'checked':''}
+              onchange="toggleDayActive(${selectedDayIdx}, this.checked)">
             <span class="toggle-track"></span>
           </label>
         </label>
@@ -356,16 +345,20 @@
         <div class="fascia-header">
           <span class="fascia-title">🌅 Mattina</span>
           <label class="toggle">
-            <input type="checkbox" id="d${selectedDayIdx}_mat_ab" ${d.mattina.abilitata?'checked':''}>
+            <input type="checkbox" id="mat_ab" ${d.mattina.abilitata?'checked':''}>
             <span class="toggle-track"></span>
           </label>
         </div>
         <div class="time-row">
-          <div class="time-group"><label>Inizio</label>
-            <input type="time" class="time-input" id="d${selectedDayIdx}_mat_i" value="${timeVal(d.mattina.ora_inizio,d.mattina.min_inizio)}">
+          <div class="time-group">
+            <label>Inizio</label>
+            <input type="time" class="time-input" id="mat_i"
+              value="${timeVal(d.mattina.ora_inizio, d.mattina.min_inizio)}">
           </div>
-          <div class="time-group"><label>Fine</label>
-            <input type="time" class="time-input" id="d${selectedDayIdx}_mat_f" value="${timeVal(d.mattina.ora_fine,d.mattina.min_fine)}">
+          <div class="time-group">
+            <label>Fine</label>
+            <input type="time" class="time-input" id="mat_f"
+              value="${timeVal(d.mattina.ora_fine, d.mattina.min_fine)}">
           </div>
         </div>
       </div>
@@ -373,105 +366,130 @@
         <div class="fascia-header">
           <span class="fascia-title">🌆 Sera</span>
           <label class="toggle">
-            <input type="checkbox" id="d${selectedDayIdx}_ser_ab" ${d.sera.abilitata?'checked':''}>
+            <input type="checkbox" id="ser_ab" ${d.sera.abilitata?'checked':''}>
             <span class="toggle-track"></span>
           </label>
         </div>
         <div class="time-row">
-          <div class="time-group"><label>Inizio</label>
-            <input type="time" class="time-input" id="d${selectedDayIdx}_ser_i" value="${timeVal(d.sera.ora_inizio,d.sera.min_inizio)}">
+          <div class="time-group">
+            <label>Inizio</label>
+            <input type="time" class="time-input" id="ser_i"
+              value="${timeVal(d.sera.ora_inizio, d.sera.min_inizio)}">
           </div>
-          <div class="time-group"><label>Fine</label>
-            <input type="time" class="time-input" id="d${selectedDayIdx}_ser_f" value="${timeVal(d.sera.ora_fine,d.sera.min_fine)}">
+          <div class="time-group">
+            <label>Fine</label>
+            <input type="time" class="time-input" id="ser_f"
+              value="${timeVal(d.sera.ora_fine, d.sera.min_fine)}">
           </div>
         </div>
       </div>
     `;
   }
 
-  function toggleDay(idx) {
-    schedule.days[idx].abilitato = !schedule.days[idx].abilitato;
+  function toggleDayActive(idx, checked) {
+    schedule.days[idx].abilitato = checked;
     renderDaysGrid();
   }
 
-  // ── Leggi valori dal DOM ───────────────────────────────────────────────────
-  function readDayFromDOM(idx) {
-    const matI = document.getElementById(`d${idx}_mat_i`);
-    const matF = document.getElementById(`d${idx}_mat_f`);
-    const serI = document.getElementById(`d${idx}_ser_i`);
-    const serF = document.getElementById(`d${idx}_ser_f`);
-    const matAb = document.getElementById(`d${idx}_mat_ab`);
-    const serAb = document.getElementById(`d${idx}_ser_ab`);
+  // ── Leggi valori dal DOM per il giorno corrente ────────────────────────────
+  function readCurrentDayFromDOM() {
+    const idx = selectedDayIdx;
+    const matI  = document.getElementById('mat_i');
+    const matF  = document.getElementById('mat_f');
+    const serI  = document.getElementById('ser_i');
+    const serF  = document.getElementById('ser_f');
+    const matAb = document.getElementById('mat_ab');
+    const serAb = document.getElementById('ser_ab');
     const dayAc = document.getElementById('dayActive');
-
-    if (!matI) return; // editor non ancora renderizzato
+    if (!matI) return;
 
     const mi = parseTime(matI.value), mf = parseTime(matF.value);
     const si = parseTime(serI.value), sf = parseTime(serF.value);
 
-    schedule.days[idx].abilitato         = dayAc ? dayAc.checked : schedule.days[idx].abilitato;
-    schedule.days[idx].mattina.abilitata = matAb.checked;
-    schedule.days[idx].mattina.ora_inizio = mi.h; schedule.days[idx].mattina.min_inizio = mi.m;
-    schedule.days[idx].mattina.ora_fine   = mf.h; schedule.days[idx].mattina.min_fine   = mf.m;
-    schedule.days[idx].sera.abilitata    = serAb.checked;
-    schedule.days[idx].sera.ora_inizio   = si.h; schedule.days[idx].sera.min_inizio   = si.m;
-    schedule.days[idx].sera.ora_fine     = sf.h; schedule.days[idx].sera.min_fine     = sf.m;
+    schedule.days[idx].abilitato          = dayAc  ? dayAc.checked  : schedule.days[idx].abilitato;
+    schedule.days[idx].mattina.abilitata  = matAb.checked;
+    schedule.days[idx].mattina.ora_inizio = mi.h;
+    schedule.days[idx].mattina.min_inizio = mi.m;
+    schedule.days[idx].mattina.ora_fine   = mf.h;
+    schedule.days[idx].mattina.min_fine   = mf.m;
+    schedule.days[idx].sera.abilitata     = serAb.checked;
+    schedule.days[idx].sera.ora_inizio    = si.h;
+    schedule.days[idx].sera.min_inizio    = si.m;
+    schedule.days[idx].sera.ora_fine      = sf.h;
+    schedule.days[idx].sera.min_fine      = sf.m;
   }
 
-  // ── Carica schedule dall'API ───────────────────────────────────────────────
+  // ── Carica schedule dal server ─────────────────────────────────────────────
   function loadScheduleUI(s) {
     if (!s) return;
-    schedule = s;
-    setMode(s.mode || 'fixed');
 
-    // Alternate
+    // Aggiorna dati interni
+    if (s.days)      schedule.days      = s.days;
+    if (s.alternate) schedule.alternate = s.alternate;
+
+    // Imposta modalità SOLO se l'utente non sta modificando
+    if (!userEditingMode) {
+      schedule.mode = s.mode || 'fixed';
+      setMode(schedule.mode);
+    }
+
+    // Pannello alternate
     if (s.alternate) {
-      const am = s.alternate.mattina, as_ = s.alternate.sera;
-      document.getElementById('alt_mattina_ab').checked = am.abilitata;
-      document.getElementById('alt_mattina_inizio').value = timeVal(am.ora_inizio, am.min_inizio);
-      document.getElementById('alt_mattina_fine').value   = timeVal(am.ora_fine,   am.min_fine);
-      document.getElementById('alt_sera_ab').checked      = as_.abilitata;
-      document.getElementById('alt_sera_inizio').value    = timeVal(as_.ora_inizio, as_.min_inizio);
-      document.getElementById('alt_sera_fine').value      = timeVal(as_.ora_fine,   as_.min_fine);
+      const am = s.alternate.mattina;
+      const as_ = s.alternate.sera;
+      document.getElementById('alt_mat_ab').checked = am.abilitata;
+      document.getElementById('alt_mat_i').value    = timeVal(am.ora_inizio, am.min_inizio);
+      document.getElementById('alt_mat_f').value    = timeVal(am.ora_fine,   am.min_fine);
+      document.getElementById('alt_ser_ab').checked = as_.abilitata;
+      document.getElementById('alt_ser_i').value    = timeVal(as_.ora_inizio, as_.min_inizio);
+      document.getElementById('alt_ser_f').value    = timeVal(as_.ora_fine,   as_.min_fine);
     }
 
     renderDaysGrid();
   }
 
-  // ── Salva ─────────────────────────────────────────────────────────────────
+  // ── Salva programmazione ───────────────────────────────────────────────────
   async function saveSchedule() {
-    // Leggi giorno corrente dal DOM prima di salvare
-    readDayFromDOM(selectedDayIdx);
+    readCurrentDayFromDOM();
 
     let payload;
     if (currentMode === 'fixed') {
       payload = { mode: 'fixed', days: schedule.days };
     } else {
-      const mi = parseTime(document.getElementById('alt_mattina_inizio').value);
-      const mf = parseTime(document.getElementById('alt_mattina_fine').value);
-      const si = parseTime(document.getElementById('alt_sera_inizio').value);
-      const sf = parseTime(document.getElementById('alt_sera_fine').value);
+      const mi = parseTime(document.getElementById('alt_mat_i').value);
+      const mf = parseTime(document.getElementById('alt_mat_f').value);
+      const si = parseTime(document.getElementById('alt_ser_i').value);
+      const sf = parseTime(document.getElementById('alt_ser_f').value);
       payload = {
         mode: 'alternate',
         alternate: {
-          mattina: { ora_inizio:mi.h, min_inizio:mi.m, ora_fine:mf.h, min_fine:mf.m,
-                     abilitata: document.getElementById('alt_mattina_ab').checked },
-          sera:    { ora_inizio:si.h, min_inizio:si.m, ora_fine:sf.h, min_fine:sf.m,
-                     abilitata: document.getElementById('alt_sera_ab').checked }
+          mattina: {
+            ora_inizio: mi.h, min_inizio: mi.m,
+            ora_fine:   mf.h, min_fine:   mf.m,
+            abilitata:  document.getElementById('alt_mat_ab').checked
+          },
+          sera: {
+            ora_inizio: si.h, min_inizio: si.m,
+            ora_fine:   sf.h, min_fine:   sf.m,
+            abilitata:  document.getElementById('alt_ser_ab').checked
+          }
         }
       };
     }
 
     try {
-      const res  = await fetch('/api/schedule', { method:'POST',
-        headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      const res  = await fetch('/api/schedule', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
       const data = await res.json();
       if (data.ok) toast('Programmazione salvata ✓');
       else         toast(data.error || 'Errore', 'err');
     } catch(e) { toast('Errore di rete', 'err'); }
   }
 
-  // ── Status UI ─────────────────────────────────────────────────────────────
+  // ── Aggiorna UI status ─────────────────────────────────────────────────────
   function updateUI(data) {
     const badge = document.getElementById('statusBadge');
     badge.className = 'status-badge ' + (data.online ? 'online' : 'offline');
@@ -486,40 +504,44 @@
       disp.className='valve-display valve-closed'; icon.textContent='🚰'; lbl.textContent='Chiusa';
     }
 
-    document.getElementById('fwVal').textContent    = data.firmware_version ? 'v'+data.firmware_version : '—';
-    document.getElementById('rssiVal').textContent  = data.wifi_rssi != null ? data.wifi_rssi+' dBm' : '—';
+    document.getElementById('fwVal').textContent     = data.firmware_version ? 'v'+data.firmware_version : '—';
+    document.getElementById('rssiVal').textContent   = data.wifi_rssi != null ? data.wifi_rssi+' dBm' : '—';
     document.getElementById('uptimeVal').textContent = uptimeStr(data.uptime_s);
     document.getElementById('lastSeen').textContent  = data.last_seen
       ? new Date(data.last_seen).toLocaleTimeString('it-IT') : '—';
     document.getElementById('flowLpm').textContent   = data.flow_lpm != null ? Number(data.flow_lpm).toFixed(1) : '0.0';
     document.getElementById('sessionL').textContent  = data.session_liters != null ? Number(data.session_liters).toFixed(1) : '0.0';
     document.getElementById('leakAlert').className   = 'leak-alert' + (data.leak_alert ? ' visible' : '');
-    document.getElementById('btnOpen').disabled  = !data.online;
-    document.getElementById('btnClose').disabled = !data.online;
+    document.getElementById('btnOpen').disabled      = !data.online;
+    document.getElementById('btnClose').disabled     = !data.online;
 
     if (data.schedule) loadScheduleUI(data.schedule);
   }
 
-  // ── Grafico ───────────────────────────────────────────────────────────────
+  // ── Grafico ────────────────────────────────────────────────────────────────
   function renderChart(history) {
     const chart = document.getElementById('chart');
     chart.innerHTML = '';
-    if (!history.length) { chart.innerHTML='<span style="color:var(--muted);font-size:.75rem;margin:auto">Nessun dato</span>'; return; }
+    if (!history.length) {
+      chart.innerHTML = '<span style="color:var(--muted);font-size:.75rem;margin:auto">Nessun dato</span>';
+      return;
+    }
     const data = [...history].reverse().slice(-7);
-    const max  = Math.max(...data.map(d=>d.liters), 1);
+    const max  = Math.max(...data.map(d => d.liters), 1);
     data.forEach(d => {
-      const pct = (d.liters/max)*100;
+      const pct = (d.liters / max) * 100;
       const col = document.createElement('div');
       col.className = 'bar-col';
       col.innerHTML = `
-        <div class="bar-val">${d.liters>0?Number(d.liters).toFixed(0):''}</div>
-        <div class="bar" style="height:${Math.max(pct,2)}%" title="${d.data}: ${Number(d.liters).toFixed(1)} L"></div>
+        <div class="bar-val">${d.liters>0 ? Number(d.liters).toFixed(0) : ''}</div>
+        <div class="bar" style="height:${Math.max(pct,2)}%"
+             title="${d.data}: ${Number(d.liters).toFixed(1)} L"></div>
         <div class="bar-label">${d.data.slice(5)}</div>`;
       chart.appendChild(col);
     });
   }
 
-  // ── API ───────────────────────────────────────────────────────────────────
+  // ── API ────────────────────────────────────────────────────────────────────
   async function fetchStatus() {
     try {
       const res  = await fetch('/api/status');
@@ -533,13 +555,16 @@
 
   async function fetchFlowData() {
     try {
-      const [hRes, sRes] = await Promise.all([fetch('/api/flow/history?days=7'), fetch('/api/flow/season')]);
+      const [hRes, sRes] = await Promise.all([
+        fetch('/api/flow/history?days=7'),
+        fetch('/api/flow/season')
+      ]);
       const history = await hRes.json();
       const season  = await sRes.json();
-      const today   = new Date().toISOString().slice(0,10);
+      const today   = new Date().toISOString().slice(0, 10);
       const todayRow = history.find(d => d.data === today);
-      document.getElementById('todayL').textContent   = todayRow ? Number(todayRow.liters).toFixed(1) : '0.0';
-      document.getElementById('seasonL').textContent  = season.total_liters != null ? Number(season.total_liters).toFixed(1)+' L' : '—';
+      document.getElementById('todayL').textContent      = todayRow ? Number(todayRow.liters).toFixed(1) : '0.0';
+      document.getElementById('seasonL').textContent     = season.total_liters != null ? Number(season.total_liters).toFixed(1)+' L' : '—';
       document.getElementById('seasonStart').textContent = season.start_date || '—';
       renderChart(history);
     } catch(e) { console.error(e); }
@@ -547,11 +572,15 @@
 
   async function sendCmd(cmd) {
     try {
-      const res  = await fetch('/api/cmd', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd})});
+      const res  = await fetch('/api/cmd', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({cmd})
+      });
       const data = await res.json();
       if (data.ok) toast(`Comando "${cmd}" inviato ✓`);
-      else         toast(data.error||'Errore','err');
-    } catch(e) { toast('Errore di rete','err'); }
+      else         toast(data.error || 'Errore', 'err');
+    } catch(e) { toast('Errore di rete', 'err'); }
   }
 
   async function resetSeason() {
@@ -560,10 +589,10 @@
       const res = await fetch('/api/flow/season/reset', {method:'POST'});
       const d   = await res.json();
       if (d.ok) { toast('Stagione azzerata ✓'); fetchFlowData(); }
-    } catch(e) { toast('Errore di rete','err'); }
+    } catch(e) { toast('Errore di rete', 'err'); }
   }
 
-  // ── Init ──────────────────────────────────────────────────────────────────
+  // ── Init ───────────────────────────────────────────────────────────────────
   renderDaysGrid();
   fetchStatus();
   fetchFlowData();
