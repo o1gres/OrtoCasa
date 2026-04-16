@@ -290,23 +290,6 @@
     document.getElementById('panelAlt').style.display   = mode==='alternate' ? 'block' : 'none';
   }
 
-  // ── Griglia 7 giorni ───────────────────────────────────────────────────────
-  function renderDaysGrid() {
-    const grid = document.getElementById('daysGrid');
-    grid.innerHTML = '';
-    schedule.days.forEach((d, i) => {
-      const btn = document.createElement('div');
-      let cls = 'day-btn';
-      if (d.abilitato)        cls += ' enabled';
-      if (i === selectedDayIdx) cls += ' selected';
-      btn.className   = cls;
-      btn.textContent = GIORNI[i];
-      btn.onclick     = () => { selectedDayIdx = i; renderDaysGrid(); };
-      grid.appendChild(btn);
-    });
-    renderDayTabs();
-    renderDayEditorContent();
-  }
 
   // ── Tab giorni ─────────────────────────────────────────────────────────────
   function renderDayTabs() {
@@ -319,7 +302,7 @@
       if (i === selectedDayIdx) cls += ' active';
       tab.className   = cls;
       tab.textContent = GIORNI[i];
-      tab.onclick     = () => { selectedDayIdx = i;};
+      tab.onclick = () => { selectedDayIdx = i; renderDayTabs(); renderDayEditorContent(); };
       tabs.appendChild(tab);
     });
   }
@@ -386,8 +369,9 @@
   }
 
   function toggleDayActive(idx, checked) {
-    schedule.days[idx].abilitato = checked;
-    renderDaysGrid();
+  schedule.days[idx].abilitato = checked;
+  renderDayTabs();
+  renderDayEditorContent();
   }
 
   // ── Leggi valori dal DOM per il giorno corrente ────────────────────────────
@@ -444,7 +428,8 @@
       document.getElementById('alt_ser_f').value    = timeVal(as_.ora_fine,   as_.min_fine);
     }
 
-    renderDaysGrid();
+    renderDayTabs();
+    renderDayEditorContent();
   }
 
   // ── Salva programmazione ───────────────────────────────────────────────────
@@ -592,7 +577,8 @@
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────
-  renderDaysGrid();
+  renderDayTabs();
+  renderDayEditorContent();
   fetchStatus();
   fetchFlowData();
   setInterval(fetchStatus,   5000);
