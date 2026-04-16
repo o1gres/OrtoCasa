@@ -200,7 +200,6 @@
       <p style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">
         Clicca un giorno per configurarne gli orari. Attiva il toggle "Giorno attivo" per includerlo nell'irrigazione.
       </p>
-      <div class="days-grid" id="daysGrid"></div>
       <div class="day-tabs" id="dayTabs"></div>
       <div id="dayEditorContent"></div>
     </div>
@@ -320,7 +319,7 @@
       if (i === selectedDayIdx) cls += ' active';
       tab.className   = cls;
       tab.textContent = GIORNI[i];
-      tab.onclick     = () => { selectedDayIdx = i; renderDaysGrid(); };
+      tab.onclick     = () => { selectedDayIdx = i;};
       tabs.appendChild(tab);
     });
   }
