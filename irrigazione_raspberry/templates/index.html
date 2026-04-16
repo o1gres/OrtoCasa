@@ -7,118 +7,125 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg:       #0a0f0d;
-      --surface:  #111a14;
-      --surface2: #16221a;
-      --border:   #1f3328;
-      --green:    #3ddc84;
-      --green2:   #166534;
-      --amber:    #fbbf24;
-      --red:      #f87171;
-      --blue:     #74c7ec;
-      --text:     #cfe8d8;
-      --muted:    #4a7060;
-      --mono:     'DM Mono', monospace;
-      --sans:     'Syne', sans-serif;
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0f0d; --surface:#111a14; --surface2:#16221a; --border:#1f3328;
+      --green:#3ddc84; --green2:#166534; --amber:#fbbf24; --red:#f87171;
+      --blue:#74c7ec; --text:#cfe8d8; --muted:#4a7060;
+      --mono:'DM Mono',monospace; --sans:'Syne',sans-serif;
     }
-    body { background:var(--bg); color:var(--text); font-family:var(--mono); min-height:100vh; padding:1.5rem 1rem 4rem; }
+    body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;padding:1.5rem 1rem 4rem}
 
     /* ── Header ── */
-    header { display:flex; align-items:center; justify-content:space-between; margin-bottom:2rem; flex-wrap:wrap; gap:.75rem; }
-    .logo { font-family:var(--sans); font-weight:800; font-size:clamp(1.3rem,5vw,1.8rem); letter-spacing:-.02em; color:var(--green); display:flex; align-items:center; gap:.5rem; }
-    .status-badge { display:flex; align-items:center; gap:.5rem; padding:.4rem .9rem; border-radius:99px; border:1px solid var(--border); background:var(--surface); font-size:.78rem; letter-spacing:.04em; text-transform:uppercase; transition:all .4s; }
-    .status-dot { width:8px; height:8px; border-radius:50%; background:var(--muted); transition:background .4s; flex-shrink:0; }
-    .status-badge.online  { border-color:var(--green2); }
-    .status-badge.online  .status-dot { background:var(--green); box-shadow:0 0 6px var(--green); animation:pulse 2s infinite; }
-    .status-badge.offline .status-dot { background:var(--red); }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:.75rem}
+    .logo{font-family:var(--sans);font-weight:800;font-size:clamp(1.3rem,5vw,1.8rem);letter-spacing:-.02em;color:var(--green);display:flex;align-items:center;gap:.5rem}
+    .status-badge{display:flex;align-items:center;gap:.5rem;padding:.4rem .9rem;border-radius:99px;border:1px solid var(--border);background:var(--surface);font-size:.78rem;letter-spacing:.04em;text-transform:uppercase}
+    .status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .4s}
+    .status-badge.online{border-color:var(--green2)}
+    .status-badge.online .status-dot{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite}
+    .status-badge.offline .status-dot{background:var(--red)}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-    /* ── Alert perdita ── */
-    .leak-alert { display:none; background:#1a0a0a; border:1px solid var(--red); border-radius:12px; padding:.75rem 1rem; margin-bottom:1rem; color:var(--red); font-size:.8rem; align-items:center; gap:.6rem; max-width:680px; margin-left:auto; margin-right:auto; }
-    .leak-alert.visible { display:flex; }
+    /* ── Alert ── */
+    .leak-alert{display:none;background:#1a0a0a;border:1px solid var(--red);border-radius:12px;padding:.75rem 1rem;margin-bottom:1rem;color:var(--red);font-size:.8rem;align-items:center;gap:.6rem;max-width:860px;margin-left:auto;margin-right:auto}
+    .leak-alert.visible{display:flex}
 
-    /* ── Grid ── */
-    .grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; max-width:680px; margin:0 auto; }
-    @media(max-width:520px) { .grid { grid-template-columns:1fr; } }
+    /* ── Layout ── */
+    .main-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;max-width:860px;margin:0 auto}
+    @media(max-width:580px){.main-grid{grid-template-columns:1fr}}
+    .wide{grid-column:1/-1}
 
     /* ── Card ── */
-    .card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.25rem; }
-    .card.wide { grid-column:1 / -1; }
-    .card-title { font-family:var(--sans); font-weight:700; font-size:.85rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:1rem; display:flex; align-items:center; gap:.4rem; }
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.25rem}
+    .card-title{font-family:var(--sans);font-weight:700;font-size:.85rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:1rem;display:flex;align-items:center;gap:.4rem}
 
-    /* ── Valvola ── */
-    .valve-display { text-align:center; padding:.5rem 0 1rem; }
-    .valve-icon  { font-size:3.2rem; line-height:1; margin-bottom:.4rem; transition:filter .5s; }
-    .valve-label { font-family:var(--sans); font-size:1.5rem; font-weight:700; }
-    .valve-open   .valve-icon  { color:var(--green); filter:drop-shadow(0 0 12px var(--green)); }
-    .valve-open   .valve-label { color:var(--green); }
-    .valve-closed .valve-icon  { color:var(--muted); filter:none; }
-    .valve-closed .valve-label { color:var(--muted); }
+    /* ── Valve ── */
+    .valve-display{text-align:center;padding:.5rem 0 .75rem}
+    .valve-icon{font-size:2.8rem;line-height:1;margin-bottom:.3rem;transition:filter .5s}
+    .valve-label{font-family:var(--sans);font-size:1.4rem;font-weight:700}
+    .valve-open .valve-icon{color:var(--green);filter:drop-shadow(0 0 12px var(--green))}
+    .valve-open .valve-label{color:var(--green)}
+    .valve-closed .valve-icon{color:var(--muted);filter:none}
+    .valve-closed .valve-label{color:var(--muted)}
 
     /* ── Pills ── */
-    .info-row { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.75rem; }
-    .pill { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:.25rem .6rem; font-size:.72rem; color:var(--muted); }
-    .pill strong { color:var(--text); }
-    .pill.highlight { border-color:var(--green2); }
-    .pill.highlight strong { color:var(--green); }
-    .pill.warn { border-color:#4a3000; }
-    .pill.warn strong { color:var(--amber); }
+    .info-row{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem}
+    .pill{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.2rem .55rem;font-size:.7rem;color:var(--muted)}
+    .pill strong{color:var(--text)}
+    .pill.hi{border-color:var(--green2)} .pill.hi strong{color:var(--green)}
 
-    /* ── Statistiche flusso ── */
-    .stat-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.6rem; margin-bottom:1rem; }
-    .stat-box { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:.7rem .6rem; text-align:center; }
-    .stat-value { font-family:var(--sans); font-size:1.4rem; font-weight:700; color:var(--green); line-height:1; margin-bottom:.2rem; }
-    .stat-label { font-size:.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+    /* ── Stats ── */
+    .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.75rem}
+    .stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.6rem .5rem;text-align:center}
+    .stat-value{font-family:var(--sans);font-size:1.3rem;font-weight:700;color:var(--green);line-height:1;margin-bottom:.15rem}
+    .stat-label{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 
-    /* ── Grafico barre ── */
-    .chart-wrap { overflow-x:auto; padding-bottom:.5rem; }
-    .chart { display:flex; align-items:flex-end; gap:4px; height:80px; min-width:100%; }
-    .bar-col { display:flex; flex-direction:column; align-items:center; gap:3px; flex:1; min-width:24px; }
-    .bar { width:100%; background:var(--green2); border-radius:4px 4px 0 0; transition:height .4s, background .2s; cursor:default; min-height:2px; }
-    .bar:hover { background:var(--green); }
-    .bar-label { font-size:.55rem; color:var(--muted); white-space:nowrap; }
-    .bar-val   { font-size:.6rem; color:var(--muted); }
+    /* ── Chart ── */
+    .chart-wrap{overflow-x:auto;padding-bottom:.4rem}
+    .chart{display:flex;align-items:flex-end;gap:3px;height:70px;min-width:100%}
+    .bar-col{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:22px}
+    .bar{width:100%;background:var(--green2);border-radius:3px 3px 0 0;min-height:2px;cursor:default;transition:background .2s}
+    .bar:hover{background:var(--green)}
+    .bar-label{font-size:.52rem;color:var(--muted);white-space:nowrap}
+    .bar-val{font-size:.58rem;color:var(--muted)}
 
-    /* ── Bottoni ── */
-    .btn-row { display:flex; gap:.6rem; flex-wrap:wrap; }
-    .btn { flex:1; min-width:80px; padding:.75rem .5rem; border:none; border-radius:10px; font-family:var(--mono); font-size:.8rem; font-weight:500; letter-spacing:.04em; cursor:pointer; transition:transform .1s, opacity .2s, box-shadow .2s; text-transform:uppercase; }
-    .btn:active { transform:scale(.96); }
-    .btn:disabled { opacity:.35; cursor:not-allowed; }
-    .btn-open  { background:var(--green); color:#0a0f0d; box-shadow:0 0 20px #3ddc8430; }
-    .btn-open:hover:not(:disabled) { box-shadow:0 0 28px #3ddc8460; }
-    .btn-close { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
-    .btn-close:hover:not(:disabled) { background:#1f3020; }
-    .btn-danger { background:transparent; color:var(--red); border:1px solid #4a2020; font-size:.72rem; }
-    .btn-danger:hover { background:#1a0808; }
+    /* ── Buttons ── */
+    .btn-row{display:flex;gap:.5rem;flex-wrap:wrap}
+    .btn{flex:1;min-width:70px;padding:.65rem .4rem;border:none;border-radius:10px;font-family:var(--mono);font-size:.78rem;font-weight:500;letter-spacing:.04em;cursor:pointer;transition:transform .1s,opacity .2s;text-transform:uppercase}
+    .btn:active{transform:scale(.96)}
+    .btn:disabled{opacity:.35;cursor:not-allowed}
+    .btn-open{background:var(--green);color:#0a0f0d;box-shadow:0 0 16px #3ddc8430}
+    .btn-open:hover:not(:disabled){box-shadow:0 0 24px #3ddc8460}
+    .btn-close{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+    .btn-danger{background:transparent;color:var(--red);border:1px solid #4a2020;font-size:.72rem}
+    .btn-danger:hover{background:#1a0808}
+
+    /* ── Mode switcher ── */
+    .mode-switcher{display:flex;gap:.5rem;margin-bottom:1.2rem}
+    .mode-btn{flex:1;padding:.55rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:var(--mono);font-size:.75rem;cursor:pointer;transition:all .2s;text-align:center;letter-spacing:.04em}
+    .mode-btn.active{background:var(--green2);border-color:var(--green);color:var(--green)}
+
+    /* ── Giorni settimana ── */
+    .days-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:.35rem;margin-bottom:1rem}
+    @media(max-width:400px){.days-grid{grid-template-columns:repeat(4,1fr)}}
+    .day-btn{padding:.4rem .2rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:var(--mono);font-size:.68rem;cursor:pointer;text-align:center;transition:all .2s;user-select:none}
+    .day-btn.active{background:var(--green2);border-color:var(--green);color:var(--green)}
+
+    /* ── Day editor ── */
+    .day-editor{display:none}
+    .day-editor.visible{display:block}
+    .day-tabs{display:flex;gap:.35rem;margin-bottom:.75rem;overflow-x:auto}
+    .day-tab{padding:.35rem .7rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:.7rem;cursor:pointer;white-space:nowrap;transition:all .2s}
+    .day-tab.active{background:var(--green2);border-color:var(--green);color:var(--green)}
+
+    /* ── Fascia editor ── */
+    .fascia-block{margin-bottom:.75rem;padding:.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px}
+    .fascia-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem}
+    .fascia-title{font-size:.75rem;font-weight:500;letter-spacing:.05em}
+    .time-row{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+    .time-group label{display:block;font-size:.65rem;color:var(--muted);margin-bottom:.2rem;text-transform:uppercase;letter-spacing:.06em}
+    .time-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--mono);font-size:.85rem;padding:.4rem .5rem;outline:none;transition:border-color .2s}
+    .time-input:focus{border-color:var(--green)}
 
     /* ── Toggle ── */
-    .toggle-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:.9rem; }
-    .toggle { position:relative; width:44px; height:24px; flex-shrink:0; }
-    .toggle input { opacity:0; width:0; height:0; }
-    .toggle-track { position:absolute; inset:0; background:var(--surface2); border:1px solid var(--border); border-radius:99px; cursor:pointer; transition:background .3s; }
-    .toggle-track::after { content:''; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:var(--muted); transition:transform .3s, background .3s; }
-    .toggle input:checked + .toggle-track { background:var(--green2); border-color:var(--green); }
-    .toggle input:checked + .toggle-track::after { transform:translateX(20px); background:var(--green); }
+    .toggle{position:relative;width:40px;height:22px;flex-shrink:0}
+    .toggle input{opacity:0;width:0;height:0}
+    .toggle-track{position:absolute;inset:0;background:var(--surface);border:1px solid var(--border);border-radius:99px;cursor:pointer;transition:background .3s}
+    .toggle-track::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--muted);transition:transform .3s,background .3s}
+    .toggle input:checked+.toggle-track{background:var(--green2);border-color:var(--green)}
+    .toggle input:checked+.toggle-track::after{transform:translateX(18px);background:var(--green)}
 
-    /* ── Time inputs ── */
-    .time-grid { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-bottom:.9rem; }
-    .time-group label { display:block; font-size:.7rem; color:var(--muted); margin-bottom:.25rem; text-transform:uppercase; letter-spacing:.06em; }
-    .time-input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--mono); font-size:.9rem; padding:.5rem .6rem; outline:none; transition:border-color .2s; }
-    .time-input:focus { border-color:var(--green); }
-
-    /* ── Save button ── */
-    .btn-save { width:100%; padding:.7rem; background:transparent; border:1px solid var(--green); border-radius:10px; color:var(--green); font-family:var(--mono); font-size:.8rem; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; transition:background .2s, box-shadow .2s; margin-top:.25rem; }
-    .btn-save:hover { background:#3ddc8415; box-shadow:0 0 12px #3ddc8430; }
+    /* ── Save btn ── */
+    .btn-save{width:100%;padding:.65rem;background:transparent;border:1px solid var(--green);border-radius:10px;color:var(--green);font-family:var(--mono);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .2s;margin-top:.5rem}
+    .btn-save:hover{background:#3ddc8415}
 
     /* ── Toast ── */
-    .toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:.6rem 1.2rem; font-size:.8rem; opacity:0; transition:transform .3s, opacity .3s; pointer-events:none; white-space:nowrap; z-index:999; }
-    .toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
-    .toast.ok  { border-color:var(--green2); color:var(--green); }
-    .toast.err { border-color:#4a2020; color:var(--red); }
+    .toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.6rem 1.2rem;font-size:.8rem;opacity:0;transition:transform .3s,opacity .3s;pointer-events:none;white-space:nowrap;z-index:999}
+    .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+    .toast.ok{border-color:var(--green2);color:var(--green)}
+    .toast.err{border-color:#4a2020;color:var(--red)}
 
-    footer { text-align:center; color:var(--muted); font-size:.7rem; margin-top:2.5rem; letter-spacing:.04em; }
+    footer{text-align:center;color:var(--muted);font-size:.7rem;margin-top:2.5rem}
   </style>
 </head>
 <body>
@@ -131,15 +138,11 @@
   </div>
 </header>
 
-<!-- Alert perdita -->
-<div class="leak-alert" id="leakAlert">
-  <span>⚠️</span>
-  <span>Perdita rilevata — flusso d'acqua con valvola chiusa!</span>
-</div>
+<div class="leak-alert" id="leakAlert">⚠️ <span>Perdita rilevata — flusso con valvola chiusa!</span></div>
 
-<div class="grid">
+<div class="main-grid">
 
-  <!-- Stato ESP -->
+  <!-- Dispositivo -->
   <div class="card">
     <div class="card-title">⚡ Dispositivo</div>
     <div class="valve-display valve-closed" id="valveDisplay">
@@ -153,35 +156,23 @@
     </div>
   </div>
 
-  <!-- Flusso corrente -->
+  <!-- Flusso -->
   <div class="card">
-    <div class="card-title">💧 Flusso</div>
+    <div class="card-title">💧 Acqua</div>
     <div class="stat-grid">
-      <div class="stat-box">
-        <div class="stat-value" id="flowLpm">0.0</div>
-        <div class="stat-label">L/min</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="sessionL">0.0</div>
-        <div class="stat-label">Sessione L</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="todayL">0.0</div>
-        <div class="stat-label">Oggi L</div>
-      </div>
+      <div class="stat-box"><div class="stat-value" id="flowLpm">0.0</div><div class="stat-label">L/min</div></div>
+      <div class="stat-box"><div class="stat-value" id="sessionL">0.0</div><div class="stat-label">Sessione</div></div>
+      <div class="stat-box"><div class="stat-value" id="todayL">0.0</div><div class="stat-label">Oggi L</div></div>
     </div>
     <div class="info-row">
-      <div class="pill highlight">Stagione <strong id="seasonL">—</strong></div>
-      <div class="pill">Inizio <strong id="seasonStart">—</strong></div>
+      <div class="pill hi">Stagione <strong id="seasonL">—</strong></div>
+      <div class="pill">Dal <strong id="seasonStart">—</strong></div>
     </div>
   </div>
 
-  <!-- Controllo manuale -->
+  <!-- Controllo -->
   <div class="card">
-    <div class="card-title">🎛️ Controllo manuale</div>
-    <p style="font-size:.75rem;color:var(--muted);margin-bottom:1rem;line-height:1.6">
-      Apri o chiudi la valvola<br>indipendentemente dagli orari.
-    </p>
+    <div class="card-title">🎛️ Controllo</div>
     <div class="btn-row" style="margin-bottom:.6rem">
       <button class="btn btn-open"  onclick="sendCmd('open')"  id="btnOpen">Apri</button>
       <button class="btn btn-close" onclick="sendCmd('close')" id="btnClose">Chiudi</button>
@@ -189,40 +180,68 @@
     <button class="btn btn-danger" onclick="resetSeason()" style="width:100%">Reset stagione</button>
   </div>
 
-  <!-- Storico 7 giorni -->
+  <!-- Grafico -->
   <div class="card">
     <div class="card-title">📊 Ultimi 7 giorni</div>
-    <div class="chart-wrap">
-      <div class="chart" id="chart"></div>
-    </div>
+    <div class="chart-wrap"><div class="chart" id="chart"></div></div>
   </div>
 
-  <!-- Fascia mattina -->
-  <div class="card">
-    <div class="card-title">🌅 Mattina</div>
-    <div class="toggle-row">
-      <span style="font-size:.82rem">Abilitata</span>
-      <label class="toggle"><input type="checkbox" id="mattina_abilitata"><span class="toggle-track"></span></label>
-    </div>
-    <div class="time-grid">
-      <div class="time-group"><label>Inizio</label><input type="time" class="time-input" id="mattina_inizio" value="06:00"></div>
-      <div class="time-group"><label>Fine</label><input type="time" class="time-input" id="mattina_fine" value="06:30"></div>
-    </div>
-    <button class="btn-save" onclick="saveSchedule('mattina')">Salva mattina</button>
-  </div>
+  <!-- Programmazione -->
+  <div class="card wide">
+    <div class="card-title">🗓️ Programmazione</div>
 
-  <!-- Fascia sera -->
-  <div class="card">
-    <div class="card-title">🌆 Sera</div>
-    <div class="toggle-row">
-      <span style="font-size:.82rem">Abilitata</span>
-      <label class="toggle"><input type="checkbox" id="sera_abilitata"><span class="toggle-track"></span></label>
+    <!-- Selettore modalità -->
+    <div class="mode-switcher">
+      <div class="mode-btn active" id="modeFixed" onclick="setMode('fixed')">📅 Giorni fissi</div>
+      <div class="mode-btn" id="modeAlt" onclick="setMode('alternate')">🔄 Giorno sì/no</div>
     </div>
-    <div class="time-grid">
-      <div class="time-group"><label>Inizio</label><input type="time" class="time-input" id="sera_inizio" value="19:00"></div>
-      <div class="time-group"><label>Fine</label><input type="time" class="time-input" id="sera_fine" value="19:30"></div>
+
+    <!-- Modalità A: giorni fissi -->
+    <div id="panelFixed">
+      <p style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">
+        Seleziona i giorni attivi, poi configura gli orari per ogni giorno.
+      </p>
+
+      <!-- Selezione giorni -->
+      <div class="days-grid" id="daysGrid">
+        <!-- generato da JS -->
+      </div>
+
+      <!-- Editor per il giorno selezionato -->
+      <div class="day-editor" id="dayEditor">
+        <div class="day-tabs" id="dayTabs"></div>
+        <div id="dayEditorContent"></div>
+      </div>
     </div>
-    <button class="btn-save" onclick="saveSchedule('sera')">Salva sera</button>
+
+    <!-- Modalità B: giorno sì/no -->
+    <div id="panelAlt" style="display:none">
+      <p style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">
+        L'irrigazione si attiva un giorno sì e un giorno no. Configura gli orari comuni.
+      </p>
+      <div class="fascia-block">
+        <div class="fascia-header">
+          <span class="fascia-title">🌅 Mattina</span>
+          <label class="toggle"><input type="checkbox" id="alt_mattina_ab"><span class="toggle-track"></span></label>
+        </div>
+        <div class="time-row">
+          <div class="time-group"><label>Inizio</label><input type="time" class="time-input" id="alt_mattina_inizio" value="06:00"></div>
+          <div class="time-group"><label>Fine</label><input type="time" class="time-input" id="alt_mattina_fine" value="06:30"></div>
+        </div>
+      </div>
+      <div class="fascia-block">
+        <div class="fascia-header">
+          <span class="fascia-title">🌆 Sera</span>
+          <label class="toggle"><input type="checkbox" id="alt_sera_ab"><span class="toggle-track"></span></label>
+        </div>
+        <div class="time-row">
+          <div class="time-group"><label>Inizio</label><input type="time" class="time-input" id="alt_sera_inizio" value="19:00"></div>
+          <div class="time-group"><label>Fine</label><input type="time" class="time-input" id="alt_sera_fine" value="19:30"></div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-save" onclick="saveSchedule()">💾 Salva programmazione</button>
   </div>
 
 </div>
@@ -231,99 +250,271 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  // ── Utility ──────────────────────────────────────────────────────────────
-  function toast(msg, type = 'ok') {
+  const GIORNI = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+  let currentMode    = 'fixed';
+  let selectedDayIdx = 1; // Lunedì di default
+  let schedule = {
+    mode: 'fixed',
+    days: GIORNI.map((_,i) => ({
+      day: i, abilitato: false,
+      mattina: {ora_inizio:6,min_inizio:0,ora_fine:6,min_fine:30,abilitata:false},
+      sera:    {ora_inizio:19,min_inizio:0,ora_fine:19,min_fine:30,abilitata:false}
+    })),
+    alternate: {
+      mattina: {ora_inizio:6,min_inizio:0,ora_fine:6,min_fine:30,abilitata:false},
+      sera:    {ora_inizio:19,min_inizio:0,ora_fine:19,min_fine:30,abilitata:false}
+    }
+  };
+
+  // ── Utility ────────────────────────────────────────────────────────────────
+  function toast(msg, type='ok') {
     const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.className = `toast ${type} show`;
-    setTimeout(() => el.className = 'toast', 2500);
+    el.textContent = msg; el.className = `toast ${type} show`;
+    setTimeout(() => el.className='toast', 2500);
   }
   function pad(n) { return String(n).padStart(2,'0'); }
   function uptimeStr(s) {
     if (!s) return '—';
-    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
-    if (h > 0) return `${h}h ${pad(m)}m`;
-    if (m > 0) return `${m}m ${pad(sec)}s`;
+    const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+    if(h>0) return `${h}h ${pad(m)}m`;
+    if(m>0) return `${m}m ${pad(sec)}s`;
     return `${sec}s`;
   }
-  function fmtL(v) { return v != null ? Number(v).toFixed(1) + ' L' : '—'; }
+  function timeVal(ora, min) { return `${pad(ora)}:${pad(min)}`; }
+  function parseTime(str) {
+    const [h,m] = str.split(':').map(Number);
+    return {h, m};
+  }
 
-  // ── Stato ────────────────────────────────────────────────────────────────
+  // ── Modalità ───────────────────────────────────────────────────────────────
+  function setMode(mode) {
+    currentMode = mode;
+    document.getElementById('modeFixed').className = 'mode-btn' + (mode==='fixed'?' active':'');
+    document.getElementById('modeAlt').className   = 'mode-btn' + (mode==='alternate'?' active':'');
+    document.getElementById('panelFixed').style.display = mode==='fixed' ? 'block' : 'none';
+    document.getElementById('panelAlt').style.display   = mode==='alternate' ? 'block' : 'none';
+  }
+
+  // ── Render griglia giorni ──────────────────────────────────────────────────
+  function renderDaysGrid() {
+    const grid = document.getElementById('daysGrid');
+    grid.innerHTML = '';
+    schedule.days.forEach((d, i) => {
+      const btn = document.createElement('div');
+      btn.className = 'day-btn' + (d.abilitato ? ' active' : '');
+      btn.id = `dayBtn${i}`;
+      btn.innerHTML = `<div>${GIORNI[i]}</div>`;
+      btn.onclick = () => selectDay(i);
+      grid.appendChild(btn);
+    });
+    renderDayEditor();
+  }
+
+  function selectDay(idx) {
+    selectedDayIdx = idx;
+    renderDaysGrid();
+  }
+
+  // ── Editor giorno selezionato ──────────────────────────────────────────────
+  function renderDayEditor() {
+    const editor  = document.getElementById('dayEditor');
+    const tabs    = document.getElementById('dayTabs');
+    const content = document.getElementById('dayEditorContent');
+
+    editor.className = 'day-editor visible';
+
+    // Tabs giorni abilitati + giorno selezionato
+    const visibleDays = schedule.days.filter(d => d.abilitato || d.day === selectedDayIdx);
+    if (visibleDays.length === 0) {
+      tabs.innerHTML = '';
+      content.innerHTML = '<p style="font-size:.75rem;color:var(--muted)">Seleziona almeno un giorno sopra per configurare gli orari.</p>';
+      return;
+    }
+
+    tabs.innerHTML = '';
+    visibleDays.forEach(d => {
+      const tab = document.createElement('div');
+      tab.className = 'day-tab' + (d.day === selectedDayIdx ? ' active' : '');
+      tab.textContent = GIORNI[d.day];
+      tab.onclick = () => selectDay(d.day);
+      tabs.appendChild(tab);
+    });
+
+    const d = schedule.days[selectedDayIdx];
+    content.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+        <span style="font-family:var(--sans);font-weight:700;font-size:.9rem">${GIORNI[selectedDayIdx]}</span>
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.75rem;color:var(--muted)">
+          Giorno attivo
+          <label class="toggle">
+            <input type="checkbox" id="dayActive" ${d.abilitato?'checked':''} onchange="toggleDay(${selectedDayIdx})">
+            <span class="toggle-track"></span>
+          </label>
+        </label>
+      </div>
+      <div class="fascia-block">
+        <div class="fascia-header">
+          <span class="fascia-title">🌅 Mattina</span>
+          <label class="toggle">
+            <input type="checkbox" id="d${selectedDayIdx}_mat_ab" ${d.mattina.abilitata?'checked':''}>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="time-row">
+          <div class="time-group"><label>Inizio</label>
+            <input type="time" class="time-input" id="d${selectedDayIdx}_mat_i" value="${timeVal(d.mattina.ora_inizio,d.mattina.min_inizio)}">
+          </div>
+          <div class="time-group"><label>Fine</label>
+            <input type="time" class="time-input" id="d${selectedDayIdx}_mat_f" value="${timeVal(d.mattina.ora_fine,d.mattina.min_fine)}">
+          </div>
+        </div>
+      </div>
+      <div class="fascia-block">
+        <div class="fascia-header">
+          <span class="fascia-title">🌆 Sera</span>
+          <label class="toggle">
+            <input type="checkbox" id="d${selectedDayIdx}_ser_ab" ${d.sera.abilitata?'checked':''}>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="time-row">
+          <div class="time-group"><label>Inizio</label>
+            <input type="time" class="time-input" id="d${selectedDayIdx}_ser_i" value="${timeVal(d.sera.ora_inizio,d.sera.min_inizio)}">
+          </div>
+          <div class="time-group"><label>Fine</label>
+            <input type="time" class="time-input" id="d${selectedDayIdx}_ser_f" value="${timeVal(d.sera.ora_fine,d.sera.min_fine)}">
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function toggleDay(idx) {
+    schedule.days[idx].abilitato = !schedule.days[idx].abilitato;
+    renderDaysGrid();
+  }
+
+  // ── Leggi valori dal DOM ───────────────────────────────────────────────────
+  function readDayFromDOM(idx) {
+    const matI = document.getElementById(`d${idx}_mat_i`);
+    const matF = document.getElementById(`d${idx}_mat_f`);
+    const serI = document.getElementById(`d${idx}_ser_i`);
+    const serF = document.getElementById(`d${idx}_ser_f`);
+    const matAb = document.getElementById(`d${idx}_mat_ab`);
+    const serAb = document.getElementById(`d${idx}_ser_ab`);
+    const dayAc = document.getElementById('dayActive');
+
+    if (!matI) return; // editor non ancora renderizzato
+
+    const mi = parseTime(matI.value), mf = parseTime(matF.value);
+    const si = parseTime(serI.value), sf = parseTime(serF.value);
+
+    schedule.days[idx].abilitato         = dayAc ? dayAc.checked : schedule.days[idx].abilitato;
+    schedule.days[idx].mattina.abilitata = matAb.checked;
+    schedule.days[idx].mattina.ora_inizio = mi.h; schedule.days[idx].mattina.min_inizio = mi.m;
+    schedule.days[idx].mattina.ora_fine   = mf.h; schedule.days[idx].mattina.min_fine   = mf.m;
+    schedule.days[idx].sera.abilitata    = serAb.checked;
+    schedule.days[idx].sera.ora_inizio   = si.h; schedule.days[idx].sera.min_inizio   = si.m;
+    schedule.days[idx].sera.ora_fine     = sf.h; schedule.days[idx].sera.min_fine     = sf.m;
+  }
+
+  // ── Carica schedule dall'API ───────────────────────────────────────────────
+  function loadScheduleUI(s) {
+    if (!s) return;
+    schedule = s;
+    setMode(s.mode || 'fixed');
+
+    // Alternate
+    if (s.alternate) {
+      const am = s.alternate.mattina, as_ = s.alternate.sera;
+      document.getElementById('alt_mattina_ab').checked = am.abilitata;
+      document.getElementById('alt_mattina_inizio').value = timeVal(am.ora_inizio, am.min_inizio);
+      document.getElementById('alt_mattina_fine').value   = timeVal(am.ora_fine,   am.min_fine);
+      document.getElementById('alt_sera_ab').checked      = as_.abilitata;
+      document.getElementById('alt_sera_inizio').value    = timeVal(as_.ora_inizio, as_.min_inizio);
+      document.getElementById('alt_sera_fine').value      = timeVal(as_.ora_fine,   as_.min_fine);
+    }
+
+    renderDaysGrid();
+  }
+
+  // ── Salva ─────────────────────────────────────────────────────────────────
+  async function saveSchedule() {
+    // Leggi giorno corrente dal DOM prima di salvare
+    readDayFromDOM(selectedDayIdx);
+
+    let payload;
+    if (currentMode === 'fixed') {
+      payload = { mode: 'fixed', days: schedule.days };
+    } else {
+      const mi = parseTime(document.getElementById('alt_mattina_inizio').value);
+      const mf = parseTime(document.getElementById('alt_mattina_fine').value);
+      const si = parseTime(document.getElementById('alt_sera_inizio').value);
+      const sf = parseTime(document.getElementById('alt_sera_fine').value);
+      payload = {
+        mode: 'alternate',
+        alternate: {
+          mattina: { ora_inizio:mi.h, min_inizio:mi.m, ora_fine:mf.h, min_fine:mf.m,
+                     abilitata: document.getElementById('alt_mattina_ab').checked },
+          sera:    { ora_inizio:si.h, min_inizio:si.m, ora_fine:sf.h, min_fine:sf.m,
+                     abilitata: document.getElementById('alt_sera_ab').checked }
+        }
+      };
+    }
+
+    try {
+      const res  = await fetch('/api/schedule', { method:'POST',
+        headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      const data = await res.json();
+      if (data.ok) toast('Programmazione salvata ✓');
+      else         toast(data.error || 'Errore', 'err');
+    } catch(e) { toast('Errore di rete', 'err'); }
+  }
+
+  // ── Status UI ─────────────────────────────────────────────────────────────
   function updateUI(data) {
-    // Badge
     const badge = document.getElementById('statusBadge');
     badge.className = 'status-badge ' + (data.online ? 'online' : 'offline');
     document.getElementById('statusText').textContent = data.online ? 'Connesso' : 'Offline';
 
-    // Valvola
-    const disp  = document.getElementById('valveDisplay');
-    const icon  = document.getElementById('valveIcon');
-    const label = document.getElementById('valveLabel');
+    const disp = document.getElementById('valveDisplay');
+    const icon = document.getElementById('valveIcon');
+    const lbl  = document.getElementById('valveLabel');
     if (data.valve === 'open') {
-      disp.className = 'valve-display valve-open';
-      icon.textContent = '💧'; label.textContent = 'Aperta';
-    } else if (data.valve === 'closed') {
-      disp.className = 'valve-display valve-closed';
-      icon.textContent = '🚰'; label.textContent = 'Chiusa';
+      disp.className='valve-display valve-open'; icon.textContent='💧'; lbl.textContent='Aperta';
     } else {
-      disp.className = 'valve-display valve-closed';
-      icon.textContent = '❓'; label.textContent = 'Sconosciuto';
+      disp.className='valve-display valve-closed'; icon.textContent='🚰'; lbl.textContent='Chiusa';
     }
 
-    // Info
-    document.getElementById('fwVal').textContent    = data.firmware_version ? 'v' + data.firmware_version : '—';
-    document.getElementById('rssiVal').textContent  = data.wifi_rssi != null ? data.wifi_rssi + ' dBm' : '—';
+    document.getElementById('fwVal').textContent    = data.firmware_version ? 'v'+data.firmware_version : '—';
+    document.getElementById('rssiVal').textContent  = data.wifi_rssi != null ? data.wifi_rssi+' dBm' : '—';
     document.getElementById('uptimeVal').textContent = uptimeStr(data.uptime_s);
     document.getElementById('lastSeen').textContent  = data.last_seen
       ? new Date(data.last_seen).toLocaleTimeString('it-IT') : '—';
-
-    // Flusso
     document.getElementById('flowLpm').textContent   = data.flow_lpm != null ? Number(data.flow_lpm).toFixed(1) : '0.0';
     document.getElementById('sessionL').textContent  = data.session_liters != null ? Number(data.session_liters).toFixed(1) : '0.0';
+    document.getElementById('leakAlert').className   = 'leak-alert' + (data.leak_alert ? ' visible' : '');
+    document.getElementById('btnOpen').disabled  = !data.online;
+    document.getElementById('btnClose').disabled = !data.online;
 
-    // Alert perdita
-    document.getElementById('leakAlert').className =
-      'leak-alert' + (data.leak_alert ? ' visible' : '');
-
-    // Bottoni
-    const offline = !data.online;
-    document.getElementById('btnOpen').disabled  = offline;
-    document.getElementById('btnClose').disabled = offline;
-
-    // Schedule
     if (data.schedule) loadScheduleUI(data.schedule);
-  }
-
-  function loadScheduleUI(schedule) {
-    for (const fascia of ['mattina', 'sera']) {
-      const f = schedule[fascia];
-      if (!f) continue;
-      document.getElementById(`${fascia}_abilitata`).checked = f.abilitata;
-      document.getElementById(`${fascia}_inizio`).value = `${pad(f.ora_inizio)}:${pad(f.min_inizio)}`;
-      document.getElementById(`${fascia}_fine`).value   = `${pad(f.ora_fine)}:${pad(f.min_fine)}`;
-    }
   }
 
   // ── Grafico ───────────────────────────────────────────────────────────────
   function renderChart(history) {
     const chart = document.getElementById('chart');
     chart.innerHTML = '';
-    if (!history.length) { chart.innerHTML = '<span style="color:var(--muted);font-size:.75rem;margin:auto">Nessun dato</span>'; return; }
-
-    // Ultimi 7 giorni
+    if (!history.length) { chart.innerHTML='<span style="color:var(--muted);font-size:.75rem;margin:auto">Nessun dato</span>'; return; }
     const data = [...history].reverse().slice(-7);
-    const max  = Math.max(...data.map(d => d.liters), 1);
-
+    const max  = Math.max(...data.map(d=>d.liters), 1);
     data.forEach(d => {
-      const pct   = (d.liters / max) * 100;
-      const label = d.data.slice(5); // MM-DD
-      const col   = document.createElement('div');
+      const pct = (d.liters/max)*100;
+      const col = document.createElement('div');
       col.className = 'bar-col';
       col.innerHTML = `
-        <div class="bar-val">${d.liters > 0 ? Number(d.liters).toFixed(0) : ''}</div>
+        <div class="bar-val">${d.liters>0?Number(d.liters).toFixed(0):''}</div>
         <div class="bar" style="height:${Math.max(pct,2)}%" title="${d.data}: ${Number(d.liters).toFixed(1)} L"></div>
-        <div class="bar-label">${label}</div>
-      `;
+        <div class="bar-label">${d.data.slice(5)}</div>`;
       chart.appendChild(col);
     });
   }
@@ -342,66 +533,38 @@
 
   async function fetchFlowData() {
     try {
-      const [histRes, seasonRes] = await Promise.all([
-        fetch('/api/flow/history?days=7'),
-        fetch('/api/flow/season')
-      ]);
-      const history = await histRes.json();
-      const season  = await seasonRes.json();
-
-      // Oggi
-      const today = new Date().toISOString().slice(0,10);
+      const [hRes, sRes] = await Promise.all([fetch('/api/flow/history?days=7'), fetch('/api/flow/season')]);
+      const history = await hRes.json();
+      const season  = await sRes.json();
+      const today   = new Date().toISOString().slice(0,10);
       const todayRow = history.find(d => d.data === today);
-      document.getElementById('todayL').textContent =
-        todayRow ? Number(todayRow.liters).toFixed(1) : '0.0';
-
-      // Stagione
-      document.getElementById('seasonL').textContent =
-        season.total_liters != null ? Number(season.total_liters).toFixed(1) + ' L' : '—';
-      document.getElementById('seasonStart').textContent =
-        season.start_date || '—';
-
+      document.getElementById('todayL').textContent   = todayRow ? Number(todayRow.liters).toFixed(1) : '0.0';
+      document.getElementById('seasonL').textContent  = season.total_liters != null ? Number(season.total_liters).toFixed(1)+' L' : '—';
+      document.getElementById('seasonStart').textContent = season.start_date || '—';
       renderChart(history);
-    } catch(e) { console.error('Flow data error:', e); }
+    } catch(e) { console.error(e); }
   }
 
   async function sendCmd(cmd) {
     try {
-      const res  = await fetch('/api/cmd', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cmd}) });
+      const res  = await fetch('/api/cmd', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd})});
       const data = await res.json();
       if (data.ok) toast(`Comando "${cmd}" inviato ✓`);
-      else         toast(data.error || 'Errore', 'err');
-    } catch(e) { toast('Errore di rete', 'err'); }
-  }
-
-  async function saveSchedule(fascia) {
-    const inizio = document.getElementById(`${fascia}_inizio`).value.split(':');
-    const fine   = document.getElementById(`${fascia}_fine`).value.split(':');
-    const abil   = document.getElementById(`${fascia}_abilitata`).checked;
-    const payload = { [fascia]: {
-      ora_inizio: parseInt(inizio[0]), min_inizio: parseInt(inizio[1]),
-      ora_fine:   parseInt(fine[0]),   min_fine:   parseInt(fine[1]),
-      abilitata:  abil
-    }};
-    try {
-      const res  = await fetch('/api/schedule', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-      const data = await res.json();
-      if (data.ok) toast(`Fascia ${fascia} salvata ✓`);
-      else         toast(data.error || 'Errore', 'err');
-    } catch(e) { toast('Errore di rete', 'err'); }
+      else         toast(data.error||'Errore','err');
+    } catch(e) { toast('Errore di rete','err'); }
   }
 
   async function resetSeason() {
-    if (!confirm('Sei sicuro di voler azzerare il totale stagionale?')) return;
+    if (!confirm('Azzerare il totale stagionale?')) return;
     try {
-      const res  = await fetch('/api/flow/season/reset', { method:'POST' });
-      const data = await res.json();
-      if (data.ok) { toast('Stagione azzerata ✓'); fetchFlowData(); }
-      else         toast(data.error || 'Errore', 'err');
-    } catch(e) { toast('Errore di rete', 'err'); }
+      const res = await fetch('/api/flow/season/reset', {method:'POST'});
+      const d   = await res.json();
+      if (d.ok) { toast('Stagione azzerata ✓'); fetchFlowData(); }
+    } catch(e) { toast('Errore di rete','err'); }
   }
 
-  // ── Polling ───────────────────────────────────────────────────────────────
+  // ── Init ──────────────────────────────────────────────────────────────────
+  renderDaysGrid();
   fetchStatus();
   fetchFlowData();
   setInterval(fetchStatus,   5000);

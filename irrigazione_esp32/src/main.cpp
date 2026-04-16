@@ -1,17 +1,13 @@
 /*
- * Sistema Irrigazione ESP32
+ * Sistema Irrigazione ESP32 v2.0
  * Hardware: ESP32-WROOM-32U + L9110S + Elettrovalvola bistabile + FS400A
- * Protocollo: MQTT su rete locale
- * OTA: HTTP pull da GitHub Releases
  *
- * PIN L9110S:
- *   IA -> GPIO 26  (fase A — apre)
- *   IB -> GPIO 27  (fase B — chiude)
+ * Scheduler avanzato:
+ *   Modalità A — Giorni fissi: selezioni i giorni della settimana
+ *   Modalità B — Giorno sì/no: irrigazione a giorni alterni
  *
- * PIN FS400A:
- *   Segnale -> GPIO 34
- *   VCC     -> 5V
- *   GND     -> GND
+ * PIN L9110S:  IA -> GPIO 26, IB -> GPIO 27
+ * PIN FS400A:  Segnale -> GPIO 34
  */
 
 #include <WiFi.h>
@@ -23,10 +19,7 @@
 #include <time.h>
 #include "config.h"
 
-// ── Versione firmware ─────────────────────────────────────────────────────────
-#define FIRMWARE_VERSION "1.2.0"
-
-// ── OTA ───────────────────────────────────────────────────────────────────────
+#define FIRMWARE_VERSION "2.0.0"
 #define OTA_CHECK_INTERVAL 3600000UL
 
 // ── PIN ───────────────────────────────────────────────────────────────────────
@@ -36,9 +29,8 @@ const int PIN_FLOW = 34;
 const int PULSE_MS = 300;
 
 // ── Flussometro ───────────────────────────────────────────────────────────────
-// FS400A: ~5.5 impulsi per litro — calibra con un contenitore da 1L se necessario
-const float PULSES_PER_LITER    = 5.5;
-const float LEAK_THRESHOLD_LPM  = 0.5;  // L/min sotto cui ignoriamo il flusso
+const float PULSES_PER_LITER   = 100.0;
+const float LEAK_THRESHOLD_LPM = 0.5;
 
 volatile long pulseCount     = 0;
 long          lastPulseCount = 0;
@@ -63,14 +55,50 @@ PubSubClient     mqtt(wifiClient);
 bool valveOpen     = false;
 bool otaInProgress = false;
 
+// ── Struttura fascia oraria ───────────────────────────────────────────────────
 struct Fascia {
   int  oraInizio, minInizio;
   int  oraFine,   minFine;
   bool abilitata;
 };
-Fascia fasciaMattina = {6,  0, 6,  30, false};
-Fascia fasciasSera   = {19, 0, 19, 30, false};
 
+// ── Scheduler ─────────────────────────────────────────────────────────────────
+// Modalità: "fixed" = giorni fissi, "alternate" = giorno sì/no
+char scheduleMode[12] = "fixed";
+
+// Modalità A — giorni fissi
+// giorni[0]=Dom, [1]=Lun, [2]=Mar, [3]=Mer, [4]=Gio, [5]=Ven, [6]=Sab
+struct GiornoFisso {
+  bool    abilitato;
+  Fascia  mattina;
+  Fascia  sera;
+};
+GiornoFisso giorniFissi[7] = {
+  {false, {6,0,6,30,false}, {19,0,19,30,false}},  // Dom
+  {false, {6,0,6,30,false}, {19,0,19,30,false}},  // Lun
+  {false, {6,0,6,30,false}, {19,0,19,30,false}},  // Mar
+  {false, {6,0,6,30,false}, {19,0,19,30,false}},  // Mer
+  {false, {6,0,6,30,false}, {19,0,19,30,false}},  // Gio
+  {false, {6,0,6,30,false}, {19,0,19,30,false}},  // Ven
+  {false, {6,0,6,30,false}, {19,0,19,30,false}},  // Sab
+};
+
+// Modalità B — giorno sì/no
+// Il "giorno di partenza" viene salvato per calcolare la parità
+struct AlternateSchedule {
+  Fascia mattina;
+  Fascia sera;
+  int    startDay;   // giorno del mese in cui è stata attivata la modalità
+  int    startMonth;
+  int    startYear;
+};
+AlternateSchedule altSchedule = {
+  {6, 0, 6, 30, false},
+  {19, 0, 19, 30, false},
+  1, 1, 2024
+};
+
+// ── Timer ─────────────────────────────────────────────────────────────────────
 unsigned long lastHeartbeat     = 0;
 unsigned long lastScheduleCheck = 0;
 unsigned long lastOtaCheck      = 0;
@@ -89,9 +117,7 @@ void publishStatus();
 void closeValve();
 
 // ── Interrupt flussometro ─────────────────────────────────────────────────────
-void IRAM_ATTR onFlowPulse() {
-  pulseCount++;
-}
+void IRAM_ATTR onFlowPulse() { pulseCount++; }
 
 // ── Valvola ───────────────────────────────────────────────────────────────────
 void valveImpulse(bool apri) {
@@ -102,14 +128,7 @@ void valveImpulse(bool apri) {
   digitalWrite(PIN_IA, LOW);
   digitalWrite(PIN_IB, LOW);
   valveOpen = apri;
-
-  // Reset contatore sessione ad ogni apertura
-  if (apri) {
-    pulseCount    = 0;
-    sessionLiters = 0.0;
-    leakAlert     = false;
-  }
-
+  if (apri) { pulseCount = 0; sessionLiters = 0.0; leakAlert = false; }
   publishStatus();
 }
 
@@ -118,27 +137,20 @@ void closeValve() { if (valveOpen)   valveImpulse(false); }
 
 // ── Flusso ────────────────────────────────────────────────────────────────────
 void calcFlowRate() {
-  long currentPulses = pulseCount;
-  long deltaPulses   = currentPulses - lastPulseCount;
-  lastPulseCount     = currentPulses;
-
-  flowLPM       = (float)deltaPulses / PULSES_PER_LITER;
-  sessionLiters = (float)currentPulses / PULSES_PER_LITER;
-
-  // Rilevamento perdite
+  long cur = pulseCount;
+  flowLPM       = (float)(cur - lastPulseCount) / PULSES_PER_LITER;
+  sessionLiters = (float)cur / PULSES_PER_LITER;
+  lastPulseCount = cur;
   if (!valveOpen && flowLPM > LEAK_THRESHOLD_LPM) {
     leakAlert = true;
-    Serial.printf("[PERDITA] Flusso con valvola chiusa: %.2f L/min!\n", flowLPM);
-  } else if (valveOpen) {
-    leakAlert = false;
-  }
+    Serial.printf("[PERDITA] %.2f L/min con valvola chiusa!\n", flowLPM);
+  } else if (valveOpen) leakAlert = false;
 }
 
 void publishFlow() {
   JsonDocument doc;
   doc["flow_lpm"]       = round(flowLPM * 100.0) / 100.0;
   doc["session_liters"] = round(sessionLiters * 100.0) / 100.0;
-  doc["total_pulses"]   = pulseCount;
   doc["valve_open"]     = valveOpen;
   doc["leak_alert"]     = leakAlert;
   char payload[200];
@@ -146,11 +158,65 @@ void publishFlow() {
   mqtt.publish(TOPIC_FLOW, payload, false);
 }
 
+// ── Scheduler ─────────────────────────────────────────────────────────────────
+bool inFascia(const Fascia& f, int ora, int min) {
+  if (!f.abilitata) return false;
+  int now  = ora * 60 + min;
+  int iniz = f.oraInizio * 60 + f.minInizio;
+  int fine = f.oraFine   * 60 + f.minFine;
+  return (now >= iniz && now < fine);
+}
+
+// Calcola se oggi è un giorno "sì" nella modalità alternata
+bool isAlternateDay(const struct tm& ti) {
+  // Costruisci le date come numero di giorni dall'epoca per calcolare la differenza
+  struct tm start = {};
+  start.tm_year  = altSchedule.startYear - 1900;
+  start.tm_mon   = altSchedule.startMonth - 1;
+  start.tm_mday  = altSchedule.startDay;
+  start.tm_hour  = 0; start.tm_min = 0; start.tm_sec = 0;
+
+  time_t t_start = mktime(&start);
+
+  struct tm today = ti;
+  today.tm_hour = 0; today.tm_min = 0; today.tm_sec = 0;
+  time_t t_today = mktime(&today);
+
+  long diffDays = (long)((t_today - t_start) / 86400);
+  return (diffDays % 2 == 0);  // giorno pari = irrigazione
+}
+
+void checkSchedule() {
+  struct tm ti;
+  if (!getLocalTime(&ti)) return;
+
+  bool deveEssereAperta = false;
+
+  if (strcmp(scheduleMode, "fixed") == 0) {
+    // Modalità A — giorni fissi
+    int wday = ti.tm_wday;  // 0=Dom, 1=Lun, ... 6=Sab
+    if (giorniFissi[wday].abilitato) {
+      deveEssereAperta =
+        inFascia(giorniFissi[wday].mattina, ti.tm_hour, ti.tm_min) ||
+        inFascia(giorniFissi[wday].sera,    ti.tm_hour, ti.tm_min);
+    }
+  } else if (strcmp(scheduleMode, "alternate") == 0) {
+    // Modalità B — giorno sì/no
+    if (isAlternateDay(ti)) {
+      deveEssereAperta =
+        inFascia(altSchedule.mattina, ti.tm_hour, ti.tm_min) ||
+        inFascia(altSchedule.sera,    ti.tm_hour, ti.tm_min);
+    }
+  }
+
+  if (deveEssereAperta && !valveOpen)  openValve();
+  if (!deveEssereAperta && valveOpen)  closeValve();
+}
+
 // ── OTA ───────────────────────────────────────────────────────────────────────
 String getOtaVersionUrl() {
   return String("https://raw.githubusercontent.com/")
-       + GITHUB_USER + "/" + GITHUB_REPO
-       + "/master/firmware/version.json";
+       + GITHUB_USER + "/" + GITHUB_REPO + "/master/firmware/version.json";
 }
 String getOtaBinUrl() {
   return String("https://github.com/")
@@ -166,11 +232,10 @@ void publishOtaStatus(const char* stato, const char* msg = "") {
   char payload[200];
   serializeJson(doc, payload);
   mqtt.publish(TOPIC_OTA, payload, false);
-  Serial.printf("[OTA] stato=%s %s\n", stato, msg);
 }
 
 bool isNewerVersion(const char* remote, const char* local) {
-  int rMaj=0, rMin=0, rPat=0, lMaj=0, lMin=0, lPat=0;
+  int rMaj=0,rMin=0,rPat=0,lMaj=0,lMin=0,lPat=0;
   sscanf(remote, "%d.%d.%d", &rMaj, &rMin, &rPat);
   sscanf(local,  "%d.%d.%d", &lMaj, &lMin, &lPat);
   if (rMaj != lMaj) return rMaj > lMaj;
@@ -180,70 +245,32 @@ bool isNewerVersion(const char* remote, const char* local) {
 
 void checkAndUpdate() {
   if (otaInProgress) return;
-  Serial.println("[OTA] Controllo aggiornamenti...");
   publishOtaStatus("checking");
-
   wifiClientSecure.setInsecure();
   HTTPClient http;
   http.begin(wifiClientSecure, getOtaVersionUrl());
   http.setTimeout(10000);
   int code = http.GET();
-
-  if (code != HTTP_CODE_OK) {
-    Serial.printf("[OTA] Errore HTTP %d\n", code);
-    publishOtaStatus("error", "impossibile leggere version.json");
-    http.end();
-    return;
-  }
-
+  if (code != HTTP_CODE_OK) { publishOtaStatus("error", "HTTP error"); http.end(); return; }
   String body = http.getString();
   http.end();
-
   JsonDocument doc;
-  if (deserializeJson(doc, body) != DeserializationError::Ok) {
-    publishOtaStatus("error", "version.json malformato");
-    return;
-  }
-
+  if (deserializeJson(doc, body) != DeserializationError::Ok) { publishOtaStatus("error", "json error"); return; }
   const char* remoteVer = doc["version"];
-  Serial.printf("[OTA] Remota: %s  Locale: %s\n", remoteVer, FIRMWARE_VERSION);
-
-  if (!isNewerVersion(remoteVer, FIRMWARE_VERSION)) {
-    Serial.println("[OTA] Firmware già aggiornato.");
-    publishOtaStatus("up_to_date");
-    return;
-  }
-
-  Serial.printf("[OTA] Nuova versione %s — avvio download...\n", remoteVer);
+  if (!isNewerVersion(remoteVer, FIRMWARE_VERSION)) { publishOtaStatus("up_to_date"); return; }
   publishOtaStatus("updating", remoteVer);
   mqtt.loop();
-
   closeValve();
   otaInProgress = true;
-
   httpUpdate.onProgress([](int cur, int total) {
-    Serial.printf("[OTA] %d / %d bytes (%.0f%%)\n",
-                  cur, total, total > 0 ? (float)cur/total*100.0f : 0.0f);
+    Serial.printf("[OTA] %d/%d (%.0f%%)\n", cur, total, total>0?(float)cur/total*100:0);
   });
-
   wifiClientSecure.setInsecure();
   httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
   t_httpUpdate_return ret = httpUpdate.update(wifiClientSecure, getOtaBinUrl());
-
-  switch (ret) {
-    case HTTP_UPDATE_FAILED:
-      Serial.printf("[OTA] FALLITO: (%d) %s\n",
-                    httpUpdate.getLastError(),
-                    httpUpdate.getLastErrorString().c_str());
-      publishOtaStatus("failed", httpUpdate.getLastErrorString().c_str());
-      otaInProgress = false;
-      break;
-    case HTTP_UPDATE_NO_UPDATES:
-      publishOtaStatus("up_to_date");
-      otaInProgress = false;
-      break;
-    case HTTP_UPDATE_OK:
-      break;
+  if (ret == HTTP_UPDATE_FAILED) {
+    publishOtaStatus("failed", httpUpdate.getLastErrorString().c_str());
+    otaInProgress = false;
   }
 }
 
@@ -256,7 +283,7 @@ void publishStatus() {
   doc["session_liters"]   = round(sessionLiters * 100.0) / 100.0;
   doc["flow_lpm"]         = round(flowLPM * 100.0) / 100.0;
   doc["leak_alert"]       = leakAlert;
-
+  doc["schedule_mode"]    = scheduleMode;
   struct tm ti;
   if (getLocalTime(&ti)) {
     char buf[20];
@@ -278,6 +305,52 @@ void publishHeartbeat() {
   mqtt.publish(TOPIC_HEARTBEAT, payload, true);
 }
 
+// ── Parsing fascia da JSON ────────────────────────────────────────────────────
+void parseFascia(Fascia& f, JsonObject obj) {
+  f.oraInizio = obj["ora_inizio"] | f.oraInizio;
+  f.minInizio = obj["min_inizio"] | f.minInizio;
+  f.oraFine   = obj["ora_fine"]   | f.oraFine;
+  f.minFine   = obj["min_fine"]   | f.minFine;
+  f.abilitata = obj["abilitata"]  | f.abilitata;
+}
+
+void handleSchedule(const char* payload) {
+  JsonDocument doc;
+  if (deserializeJson(doc, payload) != DeserializationError::Ok) return;
+
+  // Modalità
+  if (doc["mode"].is<const char*>()) {
+    strncpy(scheduleMode, doc["mode"], sizeof(scheduleMode) - 1);
+    Serial.printf("[SCHEDULE] Modalità: %s\n", scheduleMode);
+  }
+
+  // Modalità A — giorni fissi
+  if (doc["days"].is<JsonArray>()) {
+    JsonArray days = doc["days"].as<JsonArray>();
+    for (JsonObject d : days) {
+      int idx = d["day"] | -1;
+      if (idx < 0 || idx > 6) continue;
+      giorniFissi[idx].abilitato = d["abilitato"] | giorniFissi[idx].abilitato;
+      if (d["mattina"].is<JsonObject>()) parseFascia(giorniFissi[idx].mattina, d["mattina"]);
+      if (d["sera"].is<JsonObject>())    parseFascia(giorniFissi[idx].sera,    d["sera"]);
+    }
+  }
+
+  // Modalità B — alternata
+  if (doc["alternate"].is<JsonObject>()) {
+    JsonObject alt = doc["alternate"];
+    if (alt["mattina"].is<JsonObject>()) parseFascia(altSchedule.mattina, alt["mattina"]);
+    if (alt["sera"].is<JsonObject>())    parseFascia(altSchedule.sera,    alt["sera"]);
+    // Salva data di partenza
+    struct tm ti;
+    if (getLocalTime(&ti)) {
+      altSchedule.startDay   = ti.tm_mday;
+      altSchedule.startMonth = ti.tm_mon + 1;
+      altSchedule.startYear  = ti.tm_year + 1900;
+    }
+  }
+}
+
 void handleCommand(const char* payload) {
   JsonDocument doc;
   if (deserializeJson(doc, payload) != DeserializationError::Ok) return;
@@ -288,30 +361,19 @@ void handleCommand(const char* payload) {
   if (strcmp(cmd, "status")     == 0) publishStatus();
   if (strcmp(cmd, "ota")        == 0) checkAndUpdate();
   if (strcmp(cmd, "reset_flow") == 0) {
-    pulseCount = 0; sessionLiters = 0.0;
-    flowLPM = 0.0;  leakAlert = false;
-    Serial.println("[FLOW] Contatore resettato");
+    pulseCount = 0; sessionLiters = 0.0; flowLPM = 0.0; leakAlert = false;
     publishFlow();
   }
 }
 
-void handleSchedule(const char* payload) {
-  JsonDocument doc;
-  if (deserializeJson(doc, payload) != DeserializationError::Ok) return;
-  if (doc["mattina"].is<JsonObject>()) {
-    fasciaMattina.oraInizio = doc["mattina"]["ora_inizio"] | fasciaMattina.oraInizio;
-    fasciaMattina.minInizio = doc["mattina"]["min_inizio"] | fasciaMattina.minInizio;
-    fasciaMattina.oraFine   = doc["mattina"]["ora_fine"]   | fasciaMattina.oraFine;
-    fasciaMattina.minFine   = doc["mattina"]["min_fine"]   | fasciaMattina.minFine;
-    fasciaMattina.abilitata = doc["mattina"]["abilitata"]  | fasciaMattina.abilitata;
-  }
-  if (doc["sera"].is<JsonObject>()) {
-    fasciasSera.oraInizio = doc["sera"]["ora_inizio"] | fasciasSera.oraInizio;
-    fasciasSera.minInizio = doc["sera"]["min_inizio"] | fasciasSera.minInizio;
-    fasciasSera.oraFine   = doc["sera"]["ora_fine"]   | fasciasSera.oraFine;
-    fasciasSera.minFine   = doc["sera"]["min_fine"]   | fasciasSera.minFine;
-    fasciasSera.abilitata = doc["sera"]["abilitata"]  | fasciasSera.abilitata;
-  }
+void mqttCallback(char* topic, byte* message, unsigned int length) {
+  char payload[1024];
+  length = min(length, (unsigned int)1023);
+  memcpy(payload, message, length);
+  payload[length] = '\0';
+  Serial.printf("[MQTT] %s\n", topic);
+  if (strcmp(topic, TOPIC_CMD)      == 0) handleCommand(payload);
+  if (strcmp(topic, TOPIC_SCHEDULE) == 0) handleSchedule(payload);
 }
 
 void mqttConnect() {
@@ -327,36 +389,8 @@ void mqttConnect() {
     publishStatus();
     publishHeartbeat();
   } else {
-    Serial.printf(" Errore %d, riprovo al prossimo ciclo\n", mqtt.state());
+    Serial.printf(" Errore %d\n", mqtt.state());
   }
-}
-
-void mqttCallback(char* topic, byte* message, unsigned int length) {
-  char payload[512];
-  length = min(length, (unsigned int)511);
-  memcpy(payload, message, length);
-  payload[length] = '\0';
-  Serial.printf("[MQTT] %s -> %s\n", topic, payload);
-  if (strcmp(topic, TOPIC_CMD)      == 0) handleCommand(payload);
-  if (strcmp(topic, TOPIC_SCHEDULE) == 0) handleSchedule(payload);
-}
-
-// ── Scheduler ─────────────────────────────────────────────────────────────────
-bool inFascia(const Fascia& f, int ora, int min) {
-  if (!f.abilitata) return false;
-  int now  = ora * 60 + min;
-  int iniz = f.oraInizio * 60 + f.minInizio;
-  int fine = f.oraFine   * 60 + f.minFine;
-  return (now >= iniz && now < fine);
-}
-
-void checkSchedule() {
-  struct tm ti;
-  if (!getLocalTime(&ti)) return;
-  bool deveEssereAperta = inFascia(fasciaMattina, ti.tm_hour, ti.tm_min) ||
-                          inFascia(fasciasSera,   ti.tm_hour, ti.tm_min);
-  if (deveEssereAperta && !valveOpen)  openValve();
-  if (!deveEssereAperta && valveOpen)  closeValve();
 }
 
 // ── WiFi ──────────────────────────────────────────────────────────────────────
@@ -374,11 +408,8 @@ void setup() {
   Serial.begin(115200);
   Serial.printf("\n=== Sistema Irrigazione ESP32 v%s ===\n", FIRMWARE_VERSION);
 
-  pinMode(PIN_IA, OUTPUT);
-  pinMode(PIN_IB, OUTPUT);
-  digitalWrite(PIN_IA, LOW);
-  digitalWrite(PIN_IB, LOW);
-
+  pinMode(PIN_IA, OUTPUT); pinMode(PIN_IB, OUTPUT);
+  digitalWrite(PIN_IA, LOW); digitalWrite(PIN_IB, LOW);
   pinMode(PIN_FLOW, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(PIN_FLOW), onFlowPulse, FALLING);
 
@@ -388,42 +419,24 @@ void setup() {
   mqtt.setServer(MQTT_BROKER, MQTT_PORT);
   mqtt.setCallback(mqttCallback);
   mqtt.setKeepAlive(60);
+  mqtt.setBufferSize(1024);  // payload schedule più grande
 
   lastOtaCheck = millis() - OTA_CHECK_INTERVAL + 30000UL;
 }
 
 void loop() {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[WiFi] Disconnesso, riconnessione...");
-    wifiConnect();
-  }
+  if (WiFi.status() != WL_CONNECTED) { wifiConnect(); }
 
   unsigned long now = millis();
 
   if (!mqtt.connected() && now - lastMqttRetry >= MQTT_RETRY_INTERVAL) {
-    lastMqttRetry = now;
-    mqttConnect();
+    lastMqttRetry = now; mqttConnect();
   }
   if (mqtt.connected()) mqtt.loop();
 
-  if (now - lastFlowCalc >= FLOW_CALC_INTERVAL) {
-    lastFlowCalc = now;
-    calcFlowRate();
-  }
-  if (now - lastFlowPublish >= FLOW_PUBLISH_INTERVAL) {
-    lastFlowPublish = now;
-    if (mqtt.connected()) publishFlow();
-  }
-  if (now - lastHeartbeat >= HEARTBEAT_INTERVAL) {
-    lastHeartbeat = now;
-    if (mqtt.connected()) publishHeartbeat();
-  }
-  if (now - lastScheduleCheck >= SCHEDULE_CHECK_INTERVAL) {
-    lastScheduleCheck = now;
-    checkSchedule();
-  }
-  if (now - lastOtaCheck >= OTA_CHECK_INTERVAL) {
-    lastOtaCheck = now;
-    checkAndUpdate();
-  }
+  if (now - lastFlowCalc >= FLOW_CALC_INTERVAL)      { lastFlowCalc = now;      calcFlowRate(); }
+  if (now - lastFlowPublish >= FLOW_PUBLISH_INTERVAL) { lastFlowPublish = now;   if (mqtt.connected()) publishFlow(); }
+  if (now - lastHeartbeat >= HEARTBEAT_INTERVAL)      { lastHeartbeat = now;     if (mqtt.connected()) publishHeartbeat(); }
+  if (now - lastScheduleCheck >= SCHEDULE_CHECK_INTERVAL) { lastScheduleCheck = now; checkSchedule(); }
+  if (now - lastOtaCheck >= OTA_CHECK_INTERVAL)       { lastOtaCheck = now;      checkAndUpdate(); }
 }
