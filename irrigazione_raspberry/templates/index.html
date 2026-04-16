@@ -85,16 +85,9 @@
     .mode-btn{flex:1;padding:.55rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:var(--mono);font-size:.75rem;cursor:pointer;transition:all .2s;text-align:center;letter-spacing:.04em;user-select:none}
     .mode-btn.active{background:var(--green2);border-color:var(--green);color:var(--green)}
 
-    /* ── Giorni griglia ── */
-    .days-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:.35rem;margin-bottom:1rem}
-    @media(max-width:460px){.days-grid{grid-template-columns:repeat(4,1fr)}}
-    .day-btn{padding:.45rem .2rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:var(--mono);font-size:.68rem;cursor:pointer;text-align:center;transition:all .2s;user-select:none}
-    .day-btn.enabled{border-color:var(--green2);color:var(--green);background:#0f2318}
-    .day-btn.selected{border-color:var(--green);background:var(--green2);color:var(--green);font-weight:600}
-
-    /* ── Day editor ── */
+    /* ── Tab giorni ── */
     .day-tabs{display:flex;gap:.3rem;margin-bottom:.75rem;overflow-x:auto;padding-bottom:.2rem}
-    .day-tab{padding:.3rem .65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:.68rem;cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0}
+    .day-tab{padding:.35rem .65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:.68rem;cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0}
     .day-tab.active{background:var(--green2);border-color:var(--green);color:var(--green)}
     .day-tab.enabled{border-color:var(--green2);color:var(--green)}
 
@@ -191,8 +184,8 @@
     <div class="card-title">🗓️ Programmazione</div>
 
     <div class="mode-switcher">
-      <div class="mode-btn active" id="modeFixed" onclick="setMode('fixed')">📅 Giorni fissi</div>
-      <div class="mode-btn" id="modeAlt" onclick="setMode('alternate')">🔄 Giorno sì/no</div>
+      <div class="mode-btn active" id="modeFixed"  onclick="setMode('fixed')">📅 Giorni fissi</div>
+      <div class="mode-btn"        id="modeAlt"    onclick="setMode('alternate')">🔄 Giorno sì/no</div>
     </div>
 
     <!-- Modalità A: giorni fissi -->
@@ -212,21 +205,39 @@
       <div class="fascia-block">
         <div class="fascia-header">
           <span class="fascia-title">🌅 Mattina</span>
-          <label class="toggle"><input type="checkbox" id="alt_mat_ab"><span class="toggle-track"></span></label>
+          <label class="toggle">
+            <input type="checkbox" id="alt_mat_ab" onchange="readAltFromDOM()">
+            <span class="toggle-track"></span>
+          </label>
         </div>
         <div class="time-row">
-          <div class="time-group"><label>Inizio</label><input type="time" class="time-input" id="alt_mat_i" value="06:00"></div>
-          <div class="time-group"><label>Fine</label><input type="time" class="time-input" id="alt_mat_f" value="06:30"></div>
+          <div class="time-group">
+            <label>Inizio</label>
+            <input type="time" class="time-input" id="alt_mat_i" value="06:00" oninput="readAltFromDOM()">
+          </div>
+          <div class="time-group">
+            <label>Fine</label>
+            <input type="time" class="time-input" id="alt_mat_f" value="06:30" oninput="readAltFromDOM()">
+          </div>
         </div>
       </div>
       <div class="fascia-block">
         <div class="fascia-header">
           <span class="fascia-title">🌆 Sera</span>
-          <label class="toggle"><input type="checkbox" id="alt_ser_ab"><span class="toggle-track"></span></label>
+          <label class="toggle">
+            <input type="checkbox" id="alt_ser_ab" onchange="readAltFromDOM()">
+            <span class="toggle-track"></span>
+          </label>
         </div>
         <div class="time-row">
-          <div class="time-group"><label>Inizio</label><input type="time" class="time-input" id="alt_ser_i" value="19:00"></div>
-          <div class="time-group"><label>Fine</label><input type="time" class="time-input" id="alt_ser_f" value="19:30"></div>
+          <div class="time-group">
+            <label>Inizio</label>
+            <input type="time" class="time-input" id="alt_ser_i" value="19:00" oninput="readAltFromDOM()">
+          </div>
+          <div class="time-group">
+            <label>Fine</label>
+            <input type="time" class="time-input" id="alt_ser_f" value="19:30" oninput="readAltFromDOM()">
+          </div>
         </div>
       </div>
     </div>
@@ -242,10 +253,10 @@
 <script>
   const GIORNI = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
 
-  // ── Stato UI ───────────────────────────────────────────────────────────────
+  // ── Stato ──────────────────────────────────────────────────────────────────
   let currentMode     = 'fixed';
-  let userEditingMode = false;   // impedisce al polling di sovrascrivere la modalità scelta
-  let selectedDayIdx  = 1;       // Lunedì di default
+  let userEditingMode = false;
+  let selectedDayIdx  = 1;
 
   let schedule = {
     mode: 'fixed',
@@ -277,19 +288,18 @@
   function timeVal(ora, min) { return `${pad(ora)}:${pad(min)}`; }
   function parseTime(str) {
     const [h, m] = str.split(':').map(Number);
-    return {h, m};
+    return {h: isNaN(h)?0:h, m: isNaN(m)?0:m};
   }
 
   // ── Modalità ───────────────────────────────────────────────────────────────
   function setMode(mode) {
     currentMode     = mode;
     userEditingMode = true;
-    document.getElementById('modeFixed').className = 'mode-btn' + (mode==='fixed'   ? ' active' : '');
+    document.getElementById('modeFixed').className = 'mode-btn' + (mode==='fixed'    ? ' active' : '');
     document.getElementById('modeAlt').className   = 'mode-btn' + (mode==='alternate'? ' active' : '');
     document.getElementById('panelFixed').style.display = mode==='fixed'     ? 'block' : 'none';
     document.getElementById('panelAlt').style.display   = mode==='alternate' ? 'block' : 'none';
   }
-
 
   // ── Tab giorni ─────────────────────────────────────────────────────────────
   function renderDayTabs() {
@@ -298,16 +308,16 @@
     schedule.days.forEach((d, i) => {
       const tab = document.createElement('div');
       let cls = 'day-tab';
-      if (d.abilitato)        cls += ' enabled';
+      if (d.abilitato)          cls += ' enabled';
       if (i === selectedDayIdx) cls += ' active';
       tab.className   = cls;
       tab.textContent = GIORNI[i];
-      tab.onclick = () => { selectedDayIdx = i; renderDayTabs(); renderDayEditorContent(); };
+      tab.onclick     = () => { selectedDayIdx = i; renderDayTabs(); renderDayEditorContent(); };
       tabs.appendChild(tab);
     });
   }
 
-  // ── Editor contenuto giorno ────────────────────────────────────────────────
+  // ── Editor giorno ──────────────────────────────────────────────────────────
   function renderDayEditorContent() {
     const content = document.getElementById('dayEditorContent');
     const d       = schedule.days[selectedDayIdx];
@@ -327,7 +337,8 @@
         <div class="fascia-header">
           <span class="fascia-title">🌅 Mattina</span>
           <label class="toggle">
-            <input type="checkbox" id="mat_ab" ${d.mattina.abilitata?'checked':''}>
+            <input type="checkbox" id="mat_ab" ${d.mattina.abilitata?'checked':''}
+              onchange="readCurrentDayFromDOM()">
             <span class="toggle-track"></span>
           </label>
         </div>
@@ -335,12 +346,14 @@
           <div class="time-group">
             <label>Inizio</label>
             <input type="time" class="time-input" id="mat_i"
-              value="${timeVal(d.mattina.ora_inizio, d.mattina.min_inizio)}">
+              value="${timeVal(d.mattina.ora_inizio, d.mattina.min_inizio)}"
+              oninput="readCurrentDayFromDOM()">
           </div>
           <div class="time-group">
             <label>Fine</label>
             <input type="time" class="time-input" id="mat_f"
-              value="${timeVal(d.mattina.ora_fine, d.mattina.min_fine)}">
+              value="${timeVal(d.mattina.ora_fine, d.mattina.min_fine)}"
+              oninput="readCurrentDayFromDOM()">
           </div>
         </div>
       </div>
@@ -348,7 +361,8 @@
         <div class="fascia-header">
           <span class="fascia-title">🌆 Sera</span>
           <label class="toggle">
-            <input type="checkbox" id="ser_ab" ${d.sera.abilitata?'checked':''}>
+            <input type="checkbox" id="ser_ab" ${d.sera.abilitata?'checked':''}
+              onchange="readCurrentDayFromDOM()">
             <span class="toggle-track"></span>
           </label>
         </div>
@@ -356,27 +370,23 @@
           <div class="time-group">
             <label>Inizio</label>
             <input type="time" class="time-input" id="ser_i"
-              value="${timeVal(d.sera.ora_inizio, d.sera.min_inizio)}">
+              value="${timeVal(d.sera.ora_inizio, d.sera.min_inizio)}"
+              oninput="readCurrentDayFromDOM()">
           </div>
           <div class="time-group">
             <label>Fine</label>
             <input type="time" class="time-input" id="ser_f"
-              value="${timeVal(d.sera.ora_fine, d.sera.min_fine)}">
+              value="${timeVal(d.sera.ora_fine, d.sera.min_fine)}"
+              oninput="readCurrentDayFromDOM()">
           </div>
         </div>
       </div>
     `;
   }
 
-  function toggleDayActive(idx, checked) {
-  schedule.days[idx].abilitato = checked;
-  renderDayTabs();
-  renderDayEditorContent();
-  }
-
-  // ── Leggi valori dal DOM per il giorno corrente ────────────────────────────
+  // ── Leggi DOM → schedule (chiamato ad ogni modifica) ──────────────────────
   function readCurrentDayFromDOM() {
-    const idx = selectedDayIdx;
+    const idx   = selectedDayIdx;
     const matI  = document.getElementById('mat_i');
     const matF  = document.getElementById('mat_f');
     const serI  = document.getElementById('ser_i');
@@ -402,64 +412,67 @@
     schedule.days[idx].sera.min_fine      = sf.m;
   }
 
-  // ── Carica schedule dal server ─────────────────────────────────────────────
-  function loadScheduleUI(s) {
-    if (!s) return;
+  // ── Leggi DOM → schedule alternate ────────────────────────────────────────
+  function readAltFromDOM() {
+    const mi = parseTime(document.getElementById('alt_mat_i').value);
+    const mf = parseTime(document.getElementById('alt_mat_f').value);
+    const si = parseTime(document.getElementById('alt_ser_i').value);
+    const sf = parseTime(document.getElementById('alt_ser_f').value);
+    schedule.alternate.mattina = {
+      ora_inizio: mi.h, min_inizio: mi.m,
+      ora_fine:   mf.h, min_fine:   mf.m,
+      abilitata:  document.getElementById('alt_mat_ab').checked
+    };
+    schedule.alternate.sera = {
+      ora_inizio: si.h, min_inizio: si.m,
+      ora_fine:   sf.h, min_fine:   sf.m,
+      abilitata:  document.getElementById('alt_ser_ab').checked
+    };
+  }
 
-    // Aggiorna dati interni
-    if (s.days)      schedule.days      = s.days;
-    if (s.alternate) schedule.alternate = s.alternate;
-
-    // Imposta modalità SOLO se l'utente non sta modificando
-    if (!userEditingMode) {
-      schedule.mode = s.mode || 'fixed';
-      setMode(schedule.mode);
-    }
-
-    // Pannello alternate
-    if (s.alternate) {
-      const am = s.alternate.mattina;
-      const as_ = s.alternate.sera;
-      document.getElementById('alt_mat_ab').checked = am.abilitata;
-      document.getElementById('alt_mat_i').value    = timeVal(am.ora_inizio, am.min_inizio);
-      document.getElementById('alt_mat_f').value    = timeVal(am.ora_fine,   am.min_fine);
-      document.getElementById('alt_ser_ab').checked = as_.abilitata;
-      document.getElementById('alt_ser_i').value    = timeVal(as_.ora_inizio, as_.min_inizio);
-      document.getElementById('alt_ser_f').value    = timeVal(as_.ora_fine,   as_.min_fine);
-    }
-
+  function toggleDayActive(idx, checked) {
+    schedule.days[idx].abilitato = checked;
     renderDayTabs();
     renderDayEditorContent();
   }
 
+  // ── Carica schedule dal server ─────────────────────────────────────────────
+  function loadScheduleUI(s) {
+    if (!s) return;
+
+    // Aggiorna dati interni SOLO se l'utente non sta modificando
+    if (!userEditingMode) {
+      if (s.days)      schedule.days      = s.days;
+      if (s.alternate) schedule.alternate = s.alternate;
+      schedule.mode = s.mode || 'fixed';
+      setMode(schedule.mode);
+
+      // Pannello alternate
+      if (s.alternate) {
+        const am  = s.alternate.mattina;
+        const as_ = s.alternate.sera;
+        document.getElementById('alt_mat_ab').checked = am.abilitata;
+        document.getElementById('alt_mat_i').value    = timeVal(am.ora_inizio, am.min_inizio);
+        document.getElementById('alt_mat_f').value    = timeVal(am.ora_fine,   am.min_fine);
+        document.getElementById('alt_ser_ab').checked = as_.abilitata;
+        document.getElementById('alt_ser_i').value    = timeVal(as_.ora_inizio, as_.min_inizio);
+        document.getElementById('alt_ser_f').value    = timeVal(as_.ora_fine,   as_.min_fine);
+      }
+
+      renderDayTabs();
+      renderDayEditorContent();
+    }
+  }
+
   // ── Salva programmazione ───────────────────────────────────────────────────
   async function saveSchedule() {
+    // Leggi stato corrente dal DOM prima di inviare
     readCurrentDayFromDOM();
+    readAltFromDOM();
 
-    let payload;
-    if (currentMode === 'fixed') {
-      payload = { mode: 'fixed', days: schedule.days };
-    } else {
-      const mi = parseTime(document.getElementById('alt_mat_i').value);
-      const mf = parseTime(document.getElementById('alt_mat_f').value);
-      const si = parseTime(document.getElementById('alt_ser_i').value);
-      const sf = parseTime(document.getElementById('alt_ser_f').value);
-      payload = {
-        mode: 'alternate',
-        alternate: {
-          mattina: {
-            ora_inizio: mi.h, min_inizio: mi.m,
-            ora_fine:   mf.h, min_fine:   mf.m,
-            abilitata:  document.getElementById('alt_mat_ab').checked
-          },
-          sera: {
-            ora_inizio: si.h, min_inizio: si.m,
-            ora_fine:   sf.h, min_fine:   sf.m,
-            abilitata:  document.getElementById('alt_ser_ab').checked
-          }
-        }
-      };
-    }
+    const payload = currentMode === 'fixed'
+      ? { mode: 'fixed', days: schedule.days }
+      : { mode: 'alternate', alternate: schedule.alternate };
 
     try {
       const res  = await fetch('/api/schedule', {
@@ -468,12 +481,16 @@
         body: JSON.stringify(payload)
       });
       const data = await res.json();
-      if (data.ok) toast('Programmazione salvata ✓');
-      else         toast(data.error || 'Errore', 'err');
+      if (data.ok) {
+        userEditingMode = false;  // dopo il salvataggio riabilita sync dal server
+        toast('Programmazione salvata ✓');
+      } else {
+        toast(data.error || 'Errore', 'err');
+      }
     } catch(e) { toast('Errore di rete', 'err'); }
   }
 
-  // ── Aggiorna UI status ─────────────────────────────────────────────────────
+  // ── Status UI ──────────────────────────────────────────────────────────────
   function updateUI(data) {
     const badge = document.getElementById('statusBadge');
     badge.className = 'status-badge ' + (data.online ? 'online' : 'offline');
@@ -493,7 +510,7 @@
     document.getElementById('uptimeVal').textContent = uptimeStr(data.uptime_s);
     document.getElementById('lastSeen').textContent  = data.last_seen
       ? new Date(data.last_seen).toLocaleTimeString('it-IT') : '—';
-    document.getElementById('flowLpm').textContent   = data.flow_lpm != null ? Number(data.flow_lpm).toFixed(1) : '0.0';
+    document.getElementById('flowLpm').textContent   = data.flow_lpm  != null ? Number(data.flow_lpm).toFixed(1)  : '0.0';
     document.getElementById('sessionL').textContent  = data.session_liters != null ? Number(data.session_liters).toFixed(1) : '0.0';
     document.getElementById('leakAlert').className   = 'leak-alert' + (data.leak_alert ? ' visible' : '');
     document.getElementById('btnOpen').disabled      = !data.online;
@@ -545,7 +562,7 @@
       ]);
       const history = await hRes.json();
       const season  = await sRes.json();
-      const today   = new Date().toISOString().slice(0, 10);
+      const today   = new Date().toISOString().slice(0,10);
       const todayRow = history.find(d => d.data === today);
       document.getElementById('todayL').textContent      = todayRow ? Number(todayRow.liters).toFixed(1) : '0.0';
       document.getElementById('seasonL').textContent     = season.total_liters != null ? Number(season.total_liters).toFixed(1)+' L' : '—';
@@ -557,8 +574,7 @@
   async function sendCmd(cmd) {
     try {
       const res  = await fetch('/api/cmd', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({cmd})
       });
       const data = await res.json();
@@ -581,7 +597,7 @@
   renderDayEditorContent();
   fetchStatus();
   fetchFlowData();
-  setInterval(fetchStatus,   5000);
+  setInterval(fetchStatus,   30000);  // ogni 30s — non sovrascrive mentre modifichi
   setInterval(fetchFlowData, 30000);
 </script>
 </body>
