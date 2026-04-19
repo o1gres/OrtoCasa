@@ -1,13 +1,10 @@
 /*
- * Sistema Irrigazione ESP32 v2.0
- * Hardware: ESP32-WROOM-32U + L9110S + Elettrovalvola bistabile + FS400A
+ * Sistema Irrigazione ESP32 v2.1.0
+ * Hardware: ESP32-WROOM-32U + L9110S + Elettrovalvola bistabile + FS400A + HD-38
  *
- * Scheduler avanzato:
- *   Modalità A — Giorni fissi: selezioni i giorni della settimana
- *   Modalità B — Giorno sì/no: irrigazione a giorni alterni
- *
- * PIN L9110S:  IA -> GPIO 26, IB -> GPIO 27
- * PIN FS400A:  Segnale -> GPIO 34
+ * PIN L9110S:    IA -> GPIO 26, IB -> GPIO 27
+ * PIN FS400A:    Segnale -> GPIO 34
+ * PIN HD-38:     DO -> GPIO 32, AO -> GPIO 33
  */
 
 #include <WiFi.h>
@@ -19,17 +16,25 @@
 #include <time.h>
 #include "config.h"
 
-#define FIRMWARE_VERSION "2.0.0"
+#define FIRMWARE_VERSION "2.1.0"
 #define OTA_CHECK_INTERVAL 3600000UL
 
 // ── PIN ───────────────────────────────────────────────────────────────────────
-const int PIN_IA   = 26;
-const int PIN_IB   = 27;
-const int PIN_FLOW = 34;
-const int PULSE_MS = 300;
+const int PIN_IA       = 26;
+const int PIN_IB       = 27;
+const int PIN_FLOW     = 34;
+const int PIN_SOIL_DO  = 32;   // HD-38 digitale
+const int PIN_SOIL_AO  = 33;   // HD-38 analogico
+const int PULSE_MS     = 300;
+
+// ── Calibrazione sensore suolo ────────────────────────────────────────────────
+// Valori da calibrare: misura raw con sensore asciutto e bagnato
+// e aggiorna questi valori
+const int SOIL_DRY = 4000;   // valore ADC con sensore asciutto
+const int SOIL_WET = 500;    // valore ADC con sensore in acqua
 
 // ── Flussometro ───────────────────────────────────────────────────────────────
-const float PULSES_PER_LITER   = 100.0;
+const float PULSES_PER_LITER   = 300.0;
 const float LEAK_THRESHOLD_LPM = 0.5;
 
 volatile long pulseCount     = 0;
@@ -38,6 +43,11 @@ float         sessionLiters  = 0.0;
 float         flowLPM        = 0.0;
 bool          leakAlert      = false;
 
+// ── Sensore suolo ─────────────────────────────────────────────────────────────
+int  soilMoisturePct = 0;
+int  soilRaw         = 0;
+bool soilWet         = false;
+
 // ── MQTT Topics ───────────────────────────────────────────────────────────────
 const char* TOPIC_CMD       = "irrigazione/cmd";
 const char* TOPIC_SCHEDULE  = "irrigazione/schedule";
@@ -45,6 +55,7 @@ const char* TOPIC_STATUS    = "irrigazione/status";
 const char* TOPIC_HEARTBEAT = "irrigazione/heartbeat";
 const char* TOPIC_OTA       = "irrigazione/ota";
 const char* TOPIC_FLOW      = "irrigazione/flow";
+const char* TOPIC_SOIL      = "irrigazione/soil";
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -55,23 +66,19 @@ PubSubClient     mqtt(wifiClient);
 bool valveOpen     = false;
 bool otaInProgress = false;
 
-// ── Struttura fascia oraria ───────────────────────────────────────────────────
+// ── Scheduler ─────────────────────────────────────────────────────────────────
+char scheduleMode[12] = "fixed";
+
 struct Fascia {
   int  oraInizio, minInizio;
   int  oraFine,   minFine;
   bool abilitata;
 };
 
-// ── Scheduler ─────────────────────────────────────────────────────────────────
-// Modalità: "fixed" = giorni fissi, "alternate" = giorno sì/no
-char scheduleMode[12] = "fixed";
-
-// Modalità A — giorni fissi
-// giorni[0]=Dom, [1]=Lun, [2]=Mar, [3]=Mer, [4]=Gio, [5]=Ven, [6]=Sab
 struct GiornoFisso {
-  bool    abilitato;
-  Fascia  mattina;
-  Fascia  sera;
+  bool   abilitato;
+  Fascia mattina;
+  Fascia sera;
 };
 GiornoFisso giorniFissi[7] = {
   {false, {6,0,6,30,false}, {19,0,19,30,false}},  // Dom
@@ -83,19 +90,13 @@ GiornoFisso giorniFissi[7] = {
   {false, {6,0,6,30,false}, {19,0,19,30,false}},  // Sab
 };
 
-// Modalità B — giorno sì/no
-// Il "giorno di partenza" viene salvato per calcolare la parità
 struct AlternateSchedule {
   Fascia mattina;
   Fascia sera;
-  int    startDay;   // giorno del mese in cui è stata attivata la modalità
-  int    startMonth;
-  int    startYear;
+  int startDay, startMonth, startYear;
 };
 AlternateSchedule altSchedule = {
-  {6, 0, 6, 30, false},
-  {19, 0, 19, 30, false},
-  1, 1, 2024
+  {6,0,6,30,false}, {19,0,19,30,false}, 1, 1, 2024
 };
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
@@ -105,12 +106,14 @@ unsigned long lastOtaCheck      = 0;
 unsigned long lastFlowPublish   = 0;
 unsigned long lastFlowCalc      = 0;
 unsigned long lastMqttRetry     = 0;
+unsigned long lastSoilRead      = 0;
 
 const unsigned long HEARTBEAT_INTERVAL      = 30000UL;
 const unsigned long SCHEDULE_CHECK_INTERVAL = 60000UL;
 const unsigned long FLOW_PUBLISH_INTERVAL   = 5000UL;
 const unsigned long FLOW_CALC_INTERVAL      = 60000UL;
 const unsigned long MQTT_RETRY_INTERVAL     = 10000UL;
+const unsigned long SOIL_READ_INTERVAL      = 10000UL;
 
 // ── Forward declarations ──────────────────────────────────────────────────────
 void publishStatus();
@@ -158,59 +161,24 @@ void publishFlow() {
   mqtt.publish(TOPIC_FLOW, payload, false);
 }
 
-// ── Scheduler ─────────────────────────────────────────────────────────────────
-bool inFascia(const Fascia& f, int ora, int min) {
-  if (!f.abilitata) return false;
-  int now  = ora * 60 + min;
-  int iniz = f.oraInizio * 60 + f.minInizio;
-  int fine = f.oraFine   * 60 + f.minFine;
-  return (now >= iniz && now < fine);
-}
+// ── Sensore suolo HD-38 ───────────────────────────────────────────────────────
+void readSoilSensor() {
+  soilRaw = analogRead(PIN_SOIL_AO);
+  // map: SOIL_DRY=0%, SOIL_WET=100%
+  soilMoisturePct = map(soilRaw, SOIL_DRY, SOIL_WET, 0, 100);
+  soilMoisturePct = constrain(soilMoisturePct, 0, 100);
+  soilWet         = (digitalRead(PIN_SOIL_DO) == LOW);
 
-// Calcola se oggi è un giorno "sì" nella modalità alternata
-bool isAlternateDay(const struct tm& ti) {
-  // Costruisci le date come numero di giorni dall'epoca per calcolare la differenza
-  struct tm start = {};
-  start.tm_year  = altSchedule.startYear - 1900;
-  start.tm_mon   = altSchedule.startMonth - 1;
-  start.tm_mday  = altSchedule.startDay;
-  start.tm_hour  = 0; start.tm_min = 0; start.tm_sec = 0;
+  Serial.printf("[SUOLO] Raw: %d  Umidità: %d%%  Stato: %s\n",
+    soilRaw, soilMoisturePct, soilWet ? "BAGNATO" : "SECCO");
 
-  time_t t_start = mktime(&start);
-
-  struct tm today = ti;
-  today.tm_hour = 0; today.tm_min = 0; today.tm_sec = 0;
-  time_t t_today = mktime(&today);
-
-  long diffDays = (long)((t_today - t_start) / 86400);
-  return (diffDays % 2 == 0);  // giorno pari = irrigazione
-}
-
-void checkSchedule() {
-  struct tm ti;
-  if (!getLocalTime(&ti)) return;
-
-  bool deveEssereAperta = false;
-
-  if (strcmp(scheduleMode, "fixed") == 0) {
-    // Modalità A — giorni fissi
-    int wday = ti.tm_wday;  // 0=Dom, 1=Lun, ... 6=Sab
-    if (giorniFissi[wday].abilitato) {
-      deveEssereAperta =
-        inFascia(giorniFissi[wday].mattina, ti.tm_hour, ti.tm_min) ||
-        inFascia(giorniFissi[wday].sera,    ti.tm_hour, ti.tm_min);
-    }
-  } else if (strcmp(scheduleMode, "alternate") == 0) {
-    // Modalità B — giorno sì/no
-    if (isAlternateDay(ti)) {
-      deveEssereAperta =
-        inFascia(altSchedule.mattina, ti.tm_hour, ti.tm_min) ||
-        inFascia(altSchedule.sera,    ti.tm_hour, ti.tm_min);
-    }
-  }
-
-  if (deveEssereAperta && !valveOpen)  openValve();
-  if (!deveEssereAperta && valveOpen)  closeValve();
+  JsonDocument doc;
+  doc["moisture_pct"] = soilMoisturePct;
+  doc["moisture_raw"] = soilRaw;
+  doc["wet"]          = soilWet;
+  char payload[128];
+  serializeJson(doc, payload);
+  mqtt.publish(TOPIC_SOIL, payload, false);
 }
 
 // ── OTA ───────────────────────────────────────────────────────────────────────
@@ -284,13 +252,16 @@ void publishStatus() {
   doc["flow_lpm"]         = round(flowLPM * 100.0) / 100.0;
   doc["leak_alert"]       = leakAlert;
   doc["schedule_mode"]    = scheduleMode;
+  doc["soil_moisture"]    = soilMoisturePct;
+  doc["soil_raw"]         = soilRaw;
+  doc["soil_wet"]         = soilWet;
   struct tm ti;
   if (getLocalTime(&ti)) {
     char buf[20];
     strftime(buf, sizeof(buf), "%H:%M:%S", &ti);
     doc["time"] = buf;
   }
-  char payload[300];
+  char payload[400];
   serializeJson(doc, payload);
   mqtt.publish(TOPIC_STATUS, payload, true);
 }
@@ -305,7 +276,6 @@ void publishHeartbeat() {
   mqtt.publish(TOPIC_HEARTBEAT, payload, true);
 }
 
-// ── Parsing fascia da JSON ────────────────────────────────────────────────────
 void parseFascia(Fascia& f, JsonObject obj) {
   f.oraInizio = obj["ora_inizio"] | f.oraInizio;
   f.minInizio = obj["min_inizio"] | f.minInizio;
@@ -317,14 +287,9 @@ void parseFascia(Fascia& f, JsonObject obj) {
 void handleSchedule(const char* payload) {
   JsonDocument doc;
   if (deserializeJson(doc, payload) != DeserializationError::Ok) return;
-
-  // Modalità
   if (doc["mode"].is<const char*>()) {
     strncpy(scheduleMode, doc["mode"], sizeof(scheduleMode) - 1);
-    Serial.printf("[SCHEDULE] Modalità: %s\n", scheduleMode);
   }
-
-  // Modalità A — giorni fissi
   if (doc["days"].is<JsonArray>()) {
     JsonArray days = doc["days"].as<JsonArray>();
     for (JsonObject d : days) {
@@ -335,13 +300,10 @@ void handleSchedule(const char* payload) {
       if (d["sera"].is<JsonObject>())    parseFascia(giorniFissi[idx].sera,    d["sera"]);
     }
   }
-
-  // Modalità B — alternata
   if (doc["alternate"].is<JsonObject>()) {
     JsonObject alt = doc["alternate"];
     if (alt["mattina"].is<JsonObject>()) parseFascia(altSchedule.mattina, alt["mattina"]);
     if (alt["sera"].is<JsonObject>())    parseFascia(altSchedule.sera,    alt["sera"]);
-    // Salva data di partenza
     struct tm ti;
     if (getLocalTime(&ti)) {
       altSchedule.startDay   = ti.tm_mday;
@@ -393,6 +355,50 @@ void mqttConnect() {
   }
 }
 
+// ── Scheduler ─────────────────────────────────────────────────────────────────
+bool inFascia(const Fascia& f, int ora, int min) {
+  if (!f.abilitata) return false;
+  int now  = ora * 60 + min;
+  int iniz = f.oraInizio * 60 + f.minInizio;
+  int fine = f.oraFine   * 60 + f.minFine;
+  return (now >= iniz && now < fine);
+}
+
+bool isAlternateDay(const struct tm& ti) {
+  struct tm start = {};
+  start.tm_year = altSchedule.startYear - 1900;
+  start.tm_mon  = altSchedule.startMonth - 1;
+  start.tm_mday = altSchedule.startDay;
+  time_t t_start = mktime(&start);
+  struct tm today = ti;
+  today.tm_hour = 0; today.tm_min = 0; today.tm_sec = 0;
+  time_t t_today = mktime(&today);
+  long diffDays = (long)((t_today - t_start) / 86400);
+  return (diffDays % 2 == 0);
+}
+
+void checkSchedule() {
+  struct tm ti;
+  if (!getLocalTime(&ti)) return;
+  bool deveEssereAperta = false;
+  if (strcmp(scheduleMode, "fixed") == 0) {
+    int wday = ti.tm_wday;
+    if (giorniFissi[wday].abilitato) {
+      deveEssereAperta =
+        inFascia(giorniFissi[wday].mattina, ti.tm_hour, ti.tm_min) ||
+        inFascia(giorniFissi[wday].sera,    ti.tm_hour, ti.tm_min);
+    }
+  } else if (strcmp(scheduleMode, "alternate") == 0) {
+    if (isAlternateDay(ti)) {
+      deveEssereAperta =
+        inFascia(altSchedule.mattina, ti.tm_hour, ti.tm_min) ||
+        inFascia(altSchedule.sera,    ti.tm_hour, ti.tm_min);
+    }
+  }
+  if (deveEssereAperta && !valveOpen)  openValve();
+  if (!deveEssereAperta && valveOpen)  closeValve();
+}
+
 // ── WiFi ──────────────────────────────────────────────────────────────────────
 void wifiConnect() {
   Serial.printf("[WiFi] Connessione a %s", WIFI_SSID);
@@ -410,8 +416,12 @@ void setup() {
 
   pinMode(PIN_IA, OUTPUT); pinMode(PIN_IB, OUTPUT);
   digitalWrite(PIN_IA, LOW); digitalWrite(PIN_IB, LOW);
+
   pinMode(PIN_FLOW, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(PIN_FLOW), onFlowPulse, FALLING);
+
+  pinMode(PIN_SOIL_DO, INPUT);
+  // PIN_SOIL_AO è analogico, non serve pinMode
 
   wifiConnect();
   configTime(3600, 3600, "pool.ntp.org");
@@ -419,13 +429,13 @@ void setup() {
   mqtt.setServer(MQTT_BROKER, MQTT_PORT);
   mqtt.setCallback(mqttCallback);
   mqtt.setKeepAlive(60);
-  mqtt.setBufferSize(1024);  // payload schedule più grande
+  mqtt.setBufferSize(1024);
 
   lastOtaCheck = millis() - OTA_CHECK_INTERVAL + 30000UL;
 }
 
 void loop() {
-  if (WiFi.status() != WL_CONNECTED) { wifiConnect(); }
+  if (WiFi.status() != WL_CONNECTED) wifiConnect();
 
   unsigned long now = millis();
 
@@ -434,9 +444,25 @@ void loop() {
   }
   if (mqtt.connected()) mqtt.loop();
 
-  if (now - lastFlowCalc >= FLOW_CALC_INTERVAL)      { lastFlowCalc = now;      calcFlowRate(); }
-  if (now - lastFlowPublish >= FLOW_PUBLISH_INTERVAL) { lastFlowPublish = now;   if (mqtt.connected()) publishFlow(); }
-  if (now - lastHeartbeat >= HEARTBEAT_INTERVAL)      { lastHeartbeat = now;     if (mqtt.connected()) publishHeartbeat(); }
-  if (now - lastScheduleCheck >= SCHEDULE_CHECK_INTERVAL) { lastScheduleCheck = now; checkSchedule(); }
-  if (now - lastOtaCheck >= OTA_CHECK_INTERVAL)       { lastOtaCheck = now;      checkAndUpdate(); }
+  if (now - lastSoilRead >= SOIL_READ_INTERVAL) {
+    lastSoilRead = now;
+    readSoilSensor();
+  }
+  if (now - lastFlowCalc >= FLOW_CALC_INTERVAL) {
+    lastFlowCalc = now; calcFlowRate();
+  }
+  if (now - lastFlowPublish >= FLOW_PUBLISH_INTERVAL) {
+    lastFlowPublish = now;
+    if (mqtt.connected()) publishFlow();
+  }
+  if (now - lastHeartbeat >= HEARTBEAT_INTERVAL) {
+    lastHeartbeat = now;
+    if (mqtt.connected()) publishHeartbeat();
+  }
+  if (now - lastScheduleCheck >= SCHEDULE_CHECK_INTERVAL) {
+    lastScheduleCheck = now; checkSchedule();
+  }
+  if (now - lastOtaCheck >= OTA_CHECK_INTERVAL) {
+    lastOtaCheck = now; checkAndUpdate();
+  }
 }

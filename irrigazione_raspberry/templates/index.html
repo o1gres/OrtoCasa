@@ -53,12 +53,21 @@
     .pill{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.2rem .55rem;font-size:.7rem;color:var(--muted)}
     .pill strong{color:var(--text)}
     .pill.hi{border-color:var(--green2)} .pill.hi strong{color:var(--green)}
+    .pill.warn{border-color:#4a3000} .pill.warn strong{color:var(--amber)}
+    .pill.wet{border-color:var(--green2)} .pill.wet strong{color:var(--green)}
+    .pill.dry{border-color:#4a3000} .pill.dry strong{color:var(--amber)}
 
     /* ── Stats ── */
     .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.75rem}
     .stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.6rem .5rem;text-align:center}
     .stat-value{font-family:var(--sans);font-size:1.3rem;font-weight:700;color:var(--green);line-height:1;margin-bottom:.15rem}
     .stat-label{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+
+    /* ── Barra umidità suolo ── */
+    .soil-bar-wrap{margin:.75rem 0 .5rem}
+    .soil-bar-track{height:8px;background:var(--surface2);border-radius:99px;overflow:hidden;border:1px solid var(--border)}
+    .soil-bar-fill{height:100%;border-radius:99px;transition:width .6s, background .4s}
+    .soil-bar-labels{display:flex;justify-content:space-between;font-size:.62rem;color:var(--muted);margin-top:.25rem}
 
     /* ── Chart ── */
     .chart-wrap{overflow-x:auto;padding-bottom:.4rem}
@@ -163,6 +172,25 @@
     </div>
   </div>
 
+  <!-- Suolo -->
+  <div class="card">
+    <div class="card-title">🌱 Suolo</div>
+    <div style="text-align:center;margin-bottom:.5rem">
+      <span style="font-family:var(--sans);font-size:2.2rem;font-weight:700;color:var(--green)" id="soilPct">—</span>
+      <span style="font-size:.8rem;color:var(--muted)"> %</span>
+    </div>
+    <div class="soil-bar-wrap">
+      <div class="soil-bar-track">
+        <div class="soil-bar-fill" id="soilBar" style="width:0%;background:var(--amber)"></div>
+      </div>
+      <div class="soil-bar-labels"><span>Secco</span><span>Bagnato</span></div>
+    </div>
+    <div class="info-row">
+      <div class="pill" id="soilStatePill">Stato <strong id="soilState">—</strong></div>
+      <div class="pill">Raw <strong id="soilRaw">—</strong></div>
+    </div>
+  </div>
+
   <!-- Controllo -->
   <div class="card">
     <div class="card-title">🎛️ Controllo</div>
@@ -174,7 +202,7 @@
   </div>
 
   <!-- Grafico -->
-  <div class="card">
+  <div class="card wide">
     <div class="card-title">📊 Ultimi 7 giorni</div>
     <div class="chart-wrap"><div class="chart" id="chart"></div></div>
   </div>
@@ -188,7 +216,7 @@
       <div class="mode-btn"        id="modeAlt"    onclick="setMode('alternate')">🔄 Giorno sì/no</div>
     </div>
 
-    <!-- Modalità A: giorni fissi -->
+    <!-- Modalità A -->
     <div id="panelFixed">
       <p style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">
         Clicca un giorno per configurarne gli orari. Attiva il toggle "Giorno attivo" per includerlo nell'irrigazione.
@@ -197,7 +225,7 @@
       <div id="dayEditorContent"></div>
     </div>
 
-    <!-- Modalità B: giorno sì/no -->
+    <!-- Modalità B -->
     <div id="panelAlt" style="display:none">
       <p style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">
         Irrigazione a giorni alterni. Configura gli orari comuni a tutti i giorni "sì".
@@ -205,39 +233,21 @@
       <div class="fascia-block">
         <div class="fascia-header">
           <span class="fascia-title">🌅 Mattina</span>
-          <label class="toggle">
-            <input type="checkbox" id="alt_mat_ab" onchange="readAltFromDOM()">
-            <span class="toggle-track"></span>
-          </label>
+          <label class="toggle"><input type="checkbox" id="alt_mat_ab" onchange="readAltFromDOM()"><span class="toggle-track"></span></label>
         </div>
         <div class="time-row">
-          <div class="time-group">
-            <label>Inizio</label>
-            <input type="time" class="time-input" id="alt_mat_i" value="06:00" oninput="readAltFromDOM()">
-          </div>
-          <div class="time-group">
-            <label>Fine</label>
-            <input type="time" class="time-input" id="alt_mat_f" value="06:30" oninput="readAltFromDOM()">
-          </div>
+          <div class="time-group"><label>Inizio</label><input type="time" class="time-input" id="alt_mat_i" value="06:00" oninput="readAltFromDOM()"></div>
+          <div class="time-group"><label>Fine</label><input type="time" class="time-input" id="alt_mat_f" value="06:30" oninput="readAltFromDOM()"></div>
         </div>
       </div>
       <div class="fascia-block">
         <div class="fascia-header">
           <span class="fascia-title">🌆 Sera</span>
-          <label class="toggle">
-            <input type="checkbox" id="alt_ser_ab" onchange="readAltFromDOM()">
-            <span class="toggle-track"></span>
-          </label>
+          <label class="toggle"><input type="checkbox" id="alt_ser_ab" onchange="readAltFromDOM()"><span class="toggle-track"></span></label>
         </div>
         <div class="time-row">
-          <div class="time-group">
-            <label>Inizio</label>
-            <input type="time" class="time-input" id="alt_ser_i" value="19:00" oninput="readAltFromDOM()">
-          </div>
-          <div class="time-group">
-            <label>Fine</label>
-            <input type="time" class="time-input" id="alt_ser_f" value="19:30" oninput="readAltFromDOM()">
-          </div>
+          <div class="time-group"><label>Inizio</label><input type="time" class="time-input" id="alt_ser_i" value="19:00" oninput="readAltFromDOM()"></div>
+          <div class="time-group"><label>Fine</label><input type="time" class="time-input" id="alt_ser_f" value="19:30" oninput="readAltFromDOM()"></div>
         </div>
       </div>
     </div>
@@ -253,7 +263,6 @@
 <script>
   const GIORNI = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
 
-  // ── Stato ──────────────────────────────────────────────────────────────────
   let currentMode     = 'fixed';
   let userEditingMode = false;
   let selectedDayIdx  = 1;
@@ -293,8 +302,7 @@
 
   // ── Modalità ───────────────────────────────────────────────────────────────
   function setMode(mode) {
-    currentMode     = mode;
-    userEditingMode = true;
+    currentMode = mode; userEditingMode = true;
     document.getElementById('modeFixed').className = 'mode-btn' + (mode==='fixed'    ? ' active' : '');
     document.getElementById('modeAlt').className   = 'mode-btn' + (mode==='alternate'? ' active' : '');
     document.getElementById('panelFixed').style.display = mode==='fixed'     ? 'block' : 'none';
@@ -343,14 +351,12 @@
           </label>
         </div>
         <div class="time-row">
-          <div class="time-group">
-            <label>Inizio</label>
+          <div class="time-group"><label>Inizio</label>
             <input type="time" class="time-input" id="mat_i"
               value="${timeVal(d.mattina.ora_inizio, d.mattina.min_inizio)}"
               oninput="readCurrentDayFromDOM()">
           </div>
-          <div class="time-group">
-            <label>Fine</label>
+          <div class="time-group"><label>Fine</label>
             <input type="time" class="time-input" id="mat_f"
               value="${timeVal(d.mattina.ora_fine, d.mattina.min_fine)}"
               oninput="readCurrentDayFromDOM()">
@@ -367,14 +373,12 @@
           </label>
         </div>
         <div class="time-row">
-          <div class="time-group">
-            <label>Inizio</label>
+          <div class="time-group"><label>Inizio</label>
             <input type="time" class="time-input" id="ser_i"
               value="${timeVal(d.sera.ora_inizio, d.sera.min_inizio)}"
               oninput="readCurrentDayFromDOM()">
           </div>
-          <div class="time-group">
-            <label>Fine</label>
+          <div class="time-group"><label>Fine</label>
             <input type="time" class="time-input" id="ser_f"
               value="${timeVal(d.sera.ora_fine, d.sera.min_fine)}"
               oninput="readCurrentDayFromDOM()">
@@ -384,9 +388,8 @@
     `;
   }
 
-  // ── Leggi DOM → schedule (chiamato ad ogni modifica) ──────────────────────
   function readCurrentDayFromDOM() {
-    const idx   = selectedDayIdx;
+    const idx = selectedDayIdx;
     const matI  = document.getElementById('mat_i');
     const matF  = document.getElementById('mat_f');
     const serI  = document.getElementById('ser_i');
@@ -395,62 +398,47 @@
     const serAb = document.getElementById('ser_ab');
     const dayAc = document.getElementById('dayActive');
     if (!matI) return;
-
     const mi = parseTime(matI.value), mf = parseTime(matF.value);
     const si = parseTime(serI.value), sf = parseTime(serF.value);
-
     schedule.days[idx].abilitato          = dayAc  ? dayAc.checked  : schedule.days[idx].abilitato;
     schedule.days[idx].mattina.abilitata  = matAb.checked;
-    schedule.days[idx].mattina.ora_inizio = mi.h;
-    schedule.days[idx].mattina.min_inizio = mi.m;
-    schedule.days[idx].mattina.ora_fine   = mf.h;
-    schedule.days[idx].mattina.min_fine   = mf.m;
+    schedule.days[idx].mattina.ora_inizio = mi.h; schedule.days[idx].mattina.min_inizio = mi.m;
+    schedule.days[idx].mattina.ora_fine   = mf.h; schedule.days[idx].mattina.min_fine   = mf.m;
     schedule.days[idx].sera.abilitata     = serAb.checked;
-    schedule.days[idx].sera.ora_inizio    = si.h;
-    schedule.days[idx].sera.min_inizio    = si.m;
-    schedule.days[idx].sera.ora_fine      = sf.h;
-    schedule.days[idx].sera.min_fine      = sf.m;
+    schedule.days[idx].sera.ora_inizio    = si.h; schedule.days[idx].sera.min_inizio    = si.m;
+    schedule.days[idx].sera.ora_fine      = sf.h; schedule.days[idx].sera.min_fine      = sf.m;
   }
 
-  // ── Leggi DOM → schedule alternate ────────────────────────────────────────
   function readAltFromDOM() {
     const mi = parseTime(document.getElementById('alt_mat_i').value);
     const mf = parseTime(document.getElementById('alt_mat_f').value);
     const si = parseTime(document.getElementById('alt_ser_i').value);
     const sf = parseTime(document.getElementById('alt_ser_f').value);
     schedule.alternate.mattina = {
-      ora_inizio: mi.h, min_inizio: mi.m,
-      ora_fine:   mf.h, min_fine:   mf.m,
-      abilitata:  document.getElementById('alt_mat_ab').checked
+      ora_inizio:mi.h, min_inizio:mi.m, ora_fine:mf.h, min_fine:mf.m,
+      abilitata: document.getElementById('alt_mat_ab').checked
     };
     schedule.alternate.sera = {
-      ora_inizio: si.h, min_inizio: si.m,
-      ora_fine:   sf.h, min_fine:   sf.m,
-      abilitata:  document.getElementById('alt_ser_ab').checked
+      ora_inizio:si.h, min_inizio:si.m, ora_fine:sf.h, min_fine:sf.m,
+      abilitata: document.getElementById('alt_ser_ab').checked
     };
   }
 
   function toggleDayActive(idx, checked) {
     schedule.days[idx].abilitato = checked;
-    renderDayTabs();
-    renderDayEditorContent();
+    renderDayTabs(); renderDayEditorContent();
   }
 
   // ── Carica schedule dal server ─────────────────────────────────────────────
   function loadScheduleUI(s) {
     if (!s) return;
-
-    // Aggiorna dati interni SOLO se l'utente non sta modificando
     if (!userEditingMode) {
       if (s.days)      schedule.days      = s.days;
       if (s.alternate) schedule.alternate = s.alternate;
       schedule.mode = s.mode || 'fixed';
       setMode(schedule.mode);
-
-      // Pannello alternate
       if (s.alternate) {
-        const am  = s.alternate.mattina;
-        const as_ = s.alternate.sera;
+        const am = s.alternate.mattina, as_ = s.alternate.sera;
         document.getElementById('alt_mat_ab').checked = am.abilitata;
         document.getElementById('alt_mat_i').value    = timeVal(am.ora_inizio, am.min_inizio);
         document.getElementById('alt_mat_f').value    = timeVal(am.ora_fine,   am.min_fine);
@@ -458,36 +446,49 @@
         document.getElementById('alt_ser_i').value    = timeVal(as_.ora_inizio, as_.min_inizio);
         document.getElementById('alt_ser_f').value    = timeVal(as_.ora_fine,   as_.min_fine);
       }
-
-      renderDayTabs();
-      renderDayEditorContent();
+      renderDayTabs(); renderDayEditorContent();
     }
   }
 
-  // ── Salva programmazione ───────────────────────────────────────────────────
+  // ── Salva ──────────────────────────────────────────────────────────────────
   async function saveSchedule() {
-    // Leggi stato corrente dal DOM prima di inviare
-    readCurrentDayFromDOM();
-    readAltFromDOM();
-
+    readCurrentDayFromDOM(); readAltFromDOM();
     const payload = currentMode === 'fixed'
       ? { mode: 'fixed', days: schedule.days }
       : { mode: 'alternate', alternate: schedule.alternate };
-
     try {
       const res  = await fetch('/api/schedule', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify(payload)
       });
       const data = await res.json();
-      if (data.ok) {
-        userEditingMode = false;  // dopo il salvataggio riabilita sync dal server
-        toast('Programmazione salvata ✓');
-      } else {
-        toast(data.error || 'Errore', 'err');
-      }
+      if (data.ok) { userEditingMode = false; toast('Programmazione salvata ✓'); }
+      else           toast(data.error || 'Errore', 'err');
     } catch(e) { toast('Errore di rete', 'err'); }
+  }
+
+  // ── Suolo ──────────────────────────────────────────────────────────────────
+  function updateSoilUI(moisture, raw, wet) {
+    if (moisture == null) return;
+    document.getElementById('soilPct').textContent = moisture;
+    document.getElementById('soilRaw').textContent = raw != null ? raw : '—';
+
+    // Barra colore: 0-30% ambra, 30-60% giallo-verde, 60-100% verde
+    const bar = document.getElementById('soilBar');
+    bar.style.width = moisture + '%';
+    if (moisture < 30)      bar.style.background = 'var(--amber)';
+    else if (moisture < 60) bar.style.background = '#a3e635';
+    else                    bar.style.background = 'var(--green)';
+
+    const pill = document.getElementById('soilStatePill');
+    const state = document.getElementById('soilState');
+    if (wet) {
+      pill.className = 'pill wet';
+      state.textContent = 'Bagnato 💧';
+    } else {
+      pill.className = 'pill dry';
+      state.textContent = 'Secco 🏜️';
+    }
   }
 
   // ── Status UI ──────────────────────────────────────────────────────────────
@@ -516,6 +517,8 @@
     document.getElementById('btnOpen').disabled      = !data.online;
     document.getElementById('btnClose').disabled     = !data.online;
 
+    updateSoilUI(data.soil_moisture, data.soil_raw, data.soil_wet);
+
     if (data.schedule) loadScheduleUI(data.schedule);
   }
 
@@ -524,17 +527,17 @@
     const chart = document.getElementById('chart');
     chart.innerHTML = '';
     if (!history.length) {
-      chart.innerHTML = '<span style="color:var(--muted);font-size:.75rem;margin:auto">Nessun dato</span>';
+      chart.innerHTML='<span style="color:var(--muted);font-size:.75rem;margin:auto">Nessun dato</span>';
       return;
     }
     const data = [...history].reverse().slice(-7);
     const max  = Math.max(...data.map(d => d.liters), 1);
     data.forEach(d => {
-      const pct = (d.liters / max) * 100;
+      const pct = (d.liters/max)*100;
       const col = document.createElement('div');
       col.className = 'bar-col';
       col.innerHTML = `
-        <div class="bar-val">${d.liters>0 ? Number(d.liters).toFixed(0) : ''}</div>
+        <div class="bar-val">${d.liters>0?Number(d.liters).toFixed(0):''}</div>
         <div class="bar" style="height:${Math.max(pct,2)}%"
              title="${d.data}: ${Number(d.liters).toFixed(1)} L"></div>
         <div class="bar-label">${d.data.slice(5)}</div>`;
@@ -557,8 +560,7 @@
   async function fetchFlowData() {
     try {
       const [hRes, sRes] = await Promise.all([
-        fetch('/api/flow/history?days=7'),
-        fetch('/api/flow/season')
+        fetch('/api/flow/history?days=7'), fetch('/api/flow/season')
       ]);
       const history = await hRes.json();
       const season  = await sRes.json();
@@ -574,13 +576,12 @@
   async function sendCmd(cmd) {
     try {
       const res  = await fetch('/api/cmd', {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({cmd})
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cmd})
       });
       const data = await res.json();
       if (data.ok) toast(`Comando "${cmd}" inviato ✓`);
-      else         toast(data.error || 'Errore', 'err');
-    } catch(e) { toast('Errore di rete', 'err'); }
+      else         toast(data.error||'Errore','err');
+    } catch(e) { toast('Errore di rete','err'); }
   }
 
   async function resetSeason() {
@@ -589,7 +590,7 @@
       const res = await fetch('/api/flow/season/reset', {method:'POST'});
       const d   = await res.json();
       if (d.ok) { toast('Stagione azzerata ✓'); fetchFlowData(); }
-    } catch(e) { toast('Errore di rete', 'err'); }
+    } catch(e) { toast('Errore di rete','err'); }
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────
@@ -597,7 +598,7 @@
   renderDayEditorContent();
   fetchStatus();
   fetchFlowData();
-  setInterval(fetchStatus,   30000);  // ogni 30s — non sovrascrive mentre modifichi
+  setInterval(fetchStatus,   30000);
   setInterval(fetchFlowData, 30000);
 </script>
 </body>
