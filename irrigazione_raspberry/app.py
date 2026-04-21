@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Backend Flask — Sistema Irrigazione v2.0
-Scheduler avanzato: giorni fissi + giorno sì/no
+Backend Flask — Sistema Irrigazione v2.1
+Gira sul Raspberry Pi, si connette al broker Mosquitto locale.
+Salva storico litri su SQLite.
 """
 
 from flask import Flask, render_template, jsonify, request
@@ -24,6 +25,7 @@ TOPIC_SCHEDULE  = "irrigazione/schedule"
 TOPIC_STATUS    = "irrigazione/status"
 TOPIC_HEARTBEAT = "irrigazione/heartbeat"
 TOPIC_FLOW      = "irrigazione/flow"
+TOPIC_SOIL      = "irrigazione/soil"
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "irrigazione.db")
 
@@ -104,12 +106,15 @@ state = {
     "last_seen":        None,
     "uptime_s":         0,
     "wifi_rssi":        None,
-    "esp_time":         None,
+    "esp_time":         None,       # ora dell'ESP32
     "firmware_version": None,
     "flow_lpm":         0.0,
     "session_liters":   0.0,
     "leak_alert":       False,
     "schedule_mode":    "fixed",
+    "soil_moisture":    None,
+    "soil_raw":         None,
+    "soil_wet":         False,
     "schedule": {
         "mode": "fixed",
         "days": [_default_day(i) for i in range(7)],
@@ -129,6 +134,7 @@ def on_connect(client, userdata, flags, reason_code, properties):
     client.subscribe(TOPIC_STATUS)
     client.subscribe(TOPIC_HEARTBEAT)
     client.subscribe(TOPIC_FLOW)
+    client.subscribe(TOPIC_SOIL)
 
 def on_message(client, userdata, msg):
     global _session_start_liters, _valve_was_open
@@ -153,6 +159,9 @@ def on_message(client, userdata, msg):
             state["session_liters"]   = payload.get("session_liters", 0.0)
             state["leak_alert"]       = payload.get("leak_alert", False)
             state["schedule_mode"]    = payload.get("schedule_mode", "fixed")
+            state["soil_moisture"]    = payload.get("soil_moisture")
+            state["soil_raw"]         = payload.get("soil_raw")
+            state["soil_wet"]         = payload.get("soil_wet", False)
             state["last_seen"]        = datetime.now().isoformat(timespec="seconds")
 
         elif msg.topic == TOPIC_FLOW:
@@ -171,6 +180,11 @@ def on_message(client, userdata, msg):
             if valve_open and not _valve_was_open:
                 _session_start_liters = new_session
             _valve_was_open = valve_open
+
+        elif msg.topic == TOPIC_SOIL:
+            state["soil_moisture"] = payload.get("moisture_pct")
+            state["soil_raw"]      = payload.get("moisture_raw")
+            state["soil_wet"]      = payload.get("wet", False)
 
 def on_disconnect(client, userdata, flags, reason_code, properties):
     print(f"[MQTT] Disconnesso (rc={reason_code})")
@@ -236,7 +250,6 @@ def api_schedule_get():
 def api_schedule_set():
     data = request.get_json()
     with _lock:
-        # Aggiorna stato locale
         if "mode" in data:
             state["schedule"]["mode"] = data["mode"]
         if "days" in data:
@@ -244,7 +257,6 @@ def api_schedule_set():
         if "alternate" in data:
             state["schedule"]["alternate"] = data["alternate"]
         payload = state["schedule"].copy()
-
     try:
         app.mqtt_client.publish(TOPIC_SCHEDULE, json.dumps(payload), retain=True)
         return jsonify({"ok": True})

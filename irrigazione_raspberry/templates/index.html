@@ -257,7 +257,11 @@
 
 </div>
 
-<footer>ultimo aggiornamento: <span id="lastSeen">—</span></footer>
+<footer>
+  aggiornamento: <span id="lastSeen">—</span>
+  &nbsp;·&nbsp;
+  ora ESP: <span id="espTimeFooter">—</span>
+</footer>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -509,8 +513,9 @@
     document.getElementById('fwVal').textContent     = data.firmware_version ? 'v'+data.firmware_version : '—';
     document.getElementById('rssiVal').textContent   = data.wifi_rssi != null ? data.wifi_rssi+' dBm' : '—';
     document.getElementById('uptimeVal').textContent = uptimeStr(data.uptime_s);
-    document.getElementById('lastSeen').textContent  = data.last_seen
+    document.getElementById('lastSeen').textContent     = data.last_seen
       ? new Date(data.last_seen).toLocaleTimeString('it-IT') : '—';
+    document.getElementById('espTimeFooter').textContent = data.esp_time || '—';
     document.getElementById('flowLpm').textContent   = data.flow_lpm  != null ? Number(data.flow_lpm).toFixed(1)  : '0.0';
     document.getElementById('sessionL').textContent  = data.session_liters != null ? Number(data.session_liters).toFixed(1) : '0.0';
     document.getElementById('leakAlert').className   = 'leak-alert' + (data.leak_alert ? ' visible' : '');
