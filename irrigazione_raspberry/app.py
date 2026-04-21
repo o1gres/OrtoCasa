@@ -106,7 +106,7 @@ state = {
     "last_seen":        None,
     "uptime_s":         0,
     "wifi_rssi":        None,
-    "esp_time":         None,       # ora dell'ESP32
+    "esp_time":         None,
     "firmware_version": None,
     "flow_lpm":         0.0,
     "session_liters":   0.0,
@@ -148,12 +148,12 @@ def on_message(client, userdata, msg):
             state["online"]           = payload.get("online", False)
             state["uptime_s"]         = payload.get("uptime_s", 0)
             state["firmware_version"] = payload.get("firmware_version")
+            state["esp_time"]         = payload.get("time")
             state["last_seen"]        = datetime.now().isoformat(timespec="seconds")
 
         elif msg.topic == TOPIC_STATUS:
             state["valve"]            = payload.get("valve", "unknown")
             state["wifi_rssi"]        = payload.get("wifi_rssi")
-            state["esp_time"]         = payload.get("time")
             state["firmware_version"] = payload.get("firmware_version")
             state["flow_lpm"]         = payload.get("flow_lpm", 0.0)
             state["session_liters"]   = payload.get("session_liters", 0.0)

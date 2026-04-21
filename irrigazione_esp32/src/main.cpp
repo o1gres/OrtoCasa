@@ -30,11 +30,11 @@ const int PULSE_MS     = 300;
 // ── Calibrazione sensore suolo ────────────────────────────────────────────────
 // Valori da calibrare: misura raw con sensore asciutto e bagnato
 // e aggiorna questi valori
-const int SOIL_DRY = 4000;   // valore ADC con sensore asciutto
-const int SOIL_WET = 500;    // valore ADC con sensore in acqua
+const int SOIL_DRY = 2688;   // valore ADC con sensore asciutto
+const int SOIL_WET = 1100;    // valore ADC con sensore in acqua
 
 // ── Flussometro ───────────────────────────────────────────────────────────────
-const float PULSES_PER_LITER   = 300.0;
+const float PULSES_PER_LITER   = 100.0;
 const float LEAK_THRESHOLD_LPM = 0.5;
 
 volatile long pulseCount     = 0;
@@ -271,6 +271,14 @@ void publishHeartbeat() {
   doc["online"]           = true;
   doc["uptime_s"]         = millis() / 1000;
   doc["firmware_version"] = FIRMWARE_VERSION;
+
+  struct tm ti;
+  if (getLocalTime(&ti)) {
+    char buf[20];
+    strftime(buf, sizeof(buf), "%H:%M:%S", &ti);
+    doc["time"] = buf;
+  }
+
   char payload[128];
   serializeJson(doc, payload);
   mqtt.publish(TOPIC_HEARTBEAT, payload, true);
