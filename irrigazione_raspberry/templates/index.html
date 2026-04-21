@@ -598,9 +598,27 @@
     } catch(e) { toast('Errore di rete','err'); }
   }
 
+    // ── Evidenzia giorno corrente ──────────────────────────────────────────────
+    function highlightTodayTab() {
+      const today = new Date().getDay();  // 0=Dom, 1=Lun, ..., 6=Sab
+      const tabs = document.querySelectorAll('.day-tab');
+      tabs.forEach((tab, idx) => {
+        if (idx === today) {
+          tab.style.opacity = '1';
+          tab.style.fontWeight = '700';
+          tab.style.boxShadow = '0 0 8px rgba(61, 220, 132, 0.3)';
+        } else {
+          tab.style.opacity = '0.7';
+          tab.style.fontWeight = '400';
+          tab.style.boxShadow = 'none';
+        }
+      });
+    }
+
   // ── Init ───────────────────────────────────────────────────────────────────
   renderDayTabs();
   renderDayEditorContent();
+  highlightTodayTab();
   fetchStatus();
   fetchFlowData();
   setInterval(fetchStatus,   30000);
