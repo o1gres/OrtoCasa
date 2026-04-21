@@ -127,6 +127,14 @@
     .toast.ok{border-color:var(--green2);color:var(--green)}
     .toast.err{border-color:#4a2020;color:var(--red)}
 
+    .day-tab.today{
+      background:var(--green2);
+      border-color:var(--green);
+      color:var(--green);
+      font-weight:700;
+      box-shadow:0 0 12px rgba(61, 220, 132, 0.5);
+    }
+
     footer{text-align:center;color:var(--muted);font-size:.7rem;margin-top:2.5rem}
   </style>
 </head>
@@ -615,7 +623,21 @@
       highlightTodayTab();  // ← mettila qui alla fine
     }
 
+
+    function highlightTodayTab() {
+      const today = new Date().getDay();  // 0=Dom, 1=Lun, ..., 6=Sab
+      const tabs = document.querySelectorAll('.day-tab');
+      tabs.forEach((tab, idx) => {
+        if (idx === today) {
+          tab.classList.add('today');
+        } else {
+          tab.classList.remove('today');
+        }
+      });
+}
+
   // ── Init ───────────────────────────────────────────────────────────────────
+  renderDayTabs();
   renderDayTabs();
   renderDayEditorContent();
   fetchStatus();
