@@ -16,7 +16,7 @@
 #include <time.h>
 #include "config.h"
 
-#define FIRMWARE_VERSION "2.1.5"
+#define FIRMWARE_VERSION "2.1.7"
 #define OTA_CHECK_INTERVAL 3600000UL
 
 // ── PIN ───────────────────────────────────────────────────────────────────────
