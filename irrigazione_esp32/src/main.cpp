@@ -16,7 +16,7 @@
 #include <time.h>
 #include "config.h"
 
-#define FIRMWARE_VERSION "2.1.0"
+#define FIRMWARE_VERSION "2.1.2"
 #define OTA_CHECK_INTERVAL 3600000UL
 
 // ── PIN ───────────────────────────────────────────────────────────────────────
@@ -107,6 +107,7 @@ unsigned long lastFlowPublish   = 0;
 unsigned long lastFlowCalc      = 0;
 unsigned long lastMqttRetry     = 0;
 unsigned long lastSoilRead      = 0;
+unsigned long lastDebug         = 0;
 
 const unsigned long HEARTBEAT_INTERVAL      = 30000UL;
 const unsigned long SCHEDULE_CHECK_INTERVAL = 60000UL;
@@ -114,6 +115,7 @@ const unsigned long FLOW_PUBLISH_INTERVAL   = 5000UL;
 const unsigned long FLOW_CALC_INTERVAL      = 60000UL;
 const unsigned long MQTT_RETRY_INTERVAL     = 10000UL;
 const unsigned long SOIL_READ_INTERVAL      = 10000UL;
+const unsigned long DEBUG_INTERVAL          = 60000UL;
 
 // ── Forward declarations ──────────────────────────────────────────────────────
 void publishStatus();
@@ -385,6 +387,40 @@ bool isAlternateDay(const struct tm& ti) {
   return (diffDays % 2 == 0);
 }
 
+void publishScheduleDebug() {
+  struct tm ti;
+  if (!getLocalTime(&ti)) return;
+  
+  bool deveEssereAperta = false;
+  int wday = ti.tm_wday;
+  
+  if (strcmp(scheduleMode, "fixed") == 0) {
+    if (giorniFissi[wday].abilitato) {
+      deveEssereAperta =
+        inFascia(giorniFissi[wday].mattina, ti.tm_hour, ti.tm_min) ||
+        inFascia(giorniFissi[wday].sera,    ti.tm_hour, ti.tm_min);
+    }
+  }
+
+  JsonDocument doc;
+  char timeStr[10];
+  sprintf(timeStr, "%02d:%02d", ti.tm_hour, ti.tm_min);
+  doc["ora"]       = timeStr;
+  doc["giorno"]    = wday;
+  doc["abilitato"] = giorniFissi[wday].abilitato;
+  doc["deve_aprire"] = deveEssereAperta;
+  doc["sera_ora_inizio"]  = giorniFissi[wday].sera.oraInizio;
+  doc["sera_ora_fine"]    = giorniFissi[wday].sera.oraFine;
+  doc["sera_min_inizio"]  = giorniFissi[wday].sera.minInizio;
+  doc["sera_min_fine"]    = giorniFissi[wday].sera.minFine;
+  doc["sera_abilitata"]   = giorniFissi[wday].sera.abilitata;
+  doc["mattina_abilitata"] = giorniFissi[wday].mattina.abilitata;
+
+  char payload[400];
+  serializeJson(doc, payload);
+  mqtt.publish("irrigazione/schedule_debug", payload, false);
+}
+
 void checkSchedule() {
   struct tm ti;
   if (!getLocalTime(&ti)) return;
@@ -469,6 +505,10 @@ void loop() {
   }
   if (now - lastScheduleCheck >= SCHEDULE_CHECK_INTERVAL) {
     lastScheduleCheck = now; checkSchedule();
+  }
+  if (now - lastDebug >= DEBUG_INTERVAL) {
+    lastDebug = now;
+    if (mqtt.connected()) publishScheduleDebug();
   }
   if (now - lastOtaCheck >= OTA_CHECK_INTERVAL) {
     lastOtaCheck = now; checkAndUpdate();
