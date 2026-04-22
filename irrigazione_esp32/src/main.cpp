@@ -16,7 +16,7 @@
 #include <time.h>
 #include "config.h"
 
-#define FIRMWARE_VERSION "2.1.2"
+#define FIRMWARE_VERSION "2.1.5"
 #define OTA_CHECK_INTERVAL 3600000UL
 
 // ── PIN ───────────────────────────────────────────────────────────────────────
@@ -362,21 +362,13 @@ void handleCommand(const char* payload) {
 }
 
 void mqttCallback(char* topic, byte* message, unsigned int length) {
-  char payload[1024];
-  length = min(length, (unsigned int)1023);
+  char payload[2048];
+  length = min(length, (unsigned int)2047);
   memcpy(payload, message, length);
   payload[length] = '\0';
-  
-  // Debug su MQTT
-  JsonDocument dbg;
-  dbg["topic_ricevuto"] = topic;
-  dbg["payload_length"] = length;
-  char dbg_payload[200];
-  serializeJson(dbg, dbg_payload);
-  mqtt.publish("irrigazione/mqtt_debug", dbg_payload, false);
-  
-  if (strcmp(topic, TOPIC_CMD)      == 0) { Serial.println("[MQTT] -> CMD"); handleCommand(payload); }
-  if (strcmp(topic, TOPIC_SCHEDULE) == 0) { Serial.println("[MQTT] -> SCHEDULE"); handleSchedule(payload); }
+  Serial.printf("[MQTT] %s\n", topic);
+  if (strcmp(topic, TOPIC_CMD)      == 0) handleCommand(payload);
+  if (strcmp(topic, TOPIC_SCHEDULE) == 0) handleSchedule(payload);
 }
 
 void mqttConnect() {
@@ -504,7 +496,7 @@ void setup() {
   mqtt.setServer(MQTT_BROKER, MQTT_PORT);
   mqtt.setCallback(mqttCallback);
   mqtt.setKeepAlive(60);
-  mqtt.setBufferSize(1024);
+  mqtt.setBufferSize(2048);
 
   lastOtaCheck = millis() - OTA_CHECK_INTERVAL + 30000UL;
 }
