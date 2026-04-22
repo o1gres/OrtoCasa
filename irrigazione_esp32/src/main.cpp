@@ -295,21 +295,42 @@ void parseFascia(Fascia& f, JsonObject obj) {
 }
 
 void handleSchedule(const char* payload) {
+  Serial.printf("[SCHEDULE] Ricevuto messaggio, lunghezza: %d\n", strlen(payload));
+  Serial.printf("[SCHEDULE] Payload: %s\n", payload);
+  
   JsonDocument doc;
-  if (deserializeJson(doc, payload) != DeserializationError::Ok) return;
+  DeserializationError err = deserializeJson(doc, payload);
+  if (err != DeserializationError::Ok) {
+    Serial.printf("[SCHEDULE] JSON parse error: %s\n", err.c_str());
+    return;
+  }
+  
+  Serial.println("[SCHEDULE] JSON parsing OK");
+  
   if (doc["mode"].is<const char*>()) {
     strncpy(scheduleMode, doc["mode"], sizeof(scheduleMode) - 1);
+    Serial.printf("[SCHEDULE] Mode: %s\n", scheduleMode);
   }
+  
   if (doc["days"].is<JsonArray>()) {
     JsonArray days = doc["days"].as<JsonArray>();
+    Serial.printf("[SCHEDULE] Days array size: %d\n", days.size());
     for (JsonObject d : days) {
       int idx = d["day"] | -1;
       if (idx < 0 || idx > 6) continue;
+      Serial.printf("[SCHEDULE] Day %d: abilitato=%d\n", idx, (bool)d["abilitato"]);
       giorniFissi[idx].abilitato = d["abilitato"] | giorniFissi[idx].abilitato;
       if (d["mattina"].is<JsonObject>()) parseFascia(giorniFissi[idx].mattina, d["mattina"]);
-      if (d["sera"].is<JsonObject>())    parseFascia(giorniFissi[idx].sera,    d["sera"]);
+      if (d["sera"].is<JsonObject>()) {
+        parseFascia(giorniFissi[idx].sera, d["sera"]);
+        Serial.printf("[SCHEDULE]   Sera: %02d:%02d-%02d:%02d (abilitata=%d)\n",
+          giorniFissi[idx].sera.oraInizio, giorniFissi[idx].sera.minInizio,
+          giorniFissi[idx].sera.oraFine,   giorniFissi[idx].sera.minFine,
+          (bool)giorniFissi[idx].sera.abilitata);
+      }
     }
   }
+  
   if (doc["alternate"].is<JsonObject>()) {
     JsonObject alt = doc["alternate"];
     if (alt["mattina"].is<JsonObject>()) parseFascia(altSchedule.mattina, alt["mattina"]);
@@ -321,6 +342,8 @@ void handleSchedule(const char* payload) {
       altSchedule.startYear  = ti.tm_year + 1900;
     }
   }
+  
+  Serial.println("[SCHEDULE] Parsing completato");
 }
 
 void handleCommand(const char* payload) {
