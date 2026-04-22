@@ -366,9 +366,17 @@ void mqttCallback(char* topic, byte* message, unsigned int length) {
   length = min(length, (unsigned int)1023);
   memcpy(payload, message, length);
   payload[length] = '\0';
-  Serial.printf("[MQTT] %s\n", topic);
-  if (strcmp(topic, TOPIC_CMD)      == 0) handleCommand(payload);
-  if (strcmp(topic, TOPIC_SCHEDULE) == 0) handleSchedule(payload);
+  
+  // Debug su MQTT
+  JsonDocument dbg;
+  dbg["topic_ricevuto"] = topic;
+  dbg["payload_length"] = length;
+  char dbg_payload[200];
+  serializeJson(dbg, dbg_payload);
+  mqtt.publish("irrigazione/mqtt_debug", dbg_payload, false);
+  
+  if (strcmp(topic, TOPIC_CMD)      == 0) { Serial.println("[MQTT] -> CMD"); handleCommand(payload); }
+  if (strcmp(topic, TOPIC_SCHEDULE) == 0) { Serial.println("[MQTT] -> SCHEDULE"); handleSchedule(payload); }
 }
 
 void mqttConnect() {
