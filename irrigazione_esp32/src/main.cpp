@@ -48,6 +48,10 @@ int  soilMoisturePct = 0;
 int  soilRaw         = 0;
 bool soilWet         = false;
 
+// -- TB6612FNG -- Ponte H
+const int PIN_PWMA = 25;   // PWM Enable — teniamo HIGH fisso
+const int PIN_STBY = 14;   // Standby — HIGH = attivo
+
 // ── MQTT Topics ───────────────────────────────────────────────────────────────
 const char* TOPIC_CMD       = "irrigazione/cmd";
 const char* TOPIC_SCHEDULE  = "irrigazione/schedule";
@@ -489,6 +493,9 @@ void setup() {
   Serial.printf("\n=== Sistema Irrigazione ESP32 v%s ===\n", FIRMWARE_VERSION);
 
   pinMode(PIN_IA, OUTPUT); pinMode(PIN_IB, OUTPUT);
+  pinMode(PIN_PWMA, OUTPUT); pinMode(PIN_STBY, OUTPUT);
+  digitalWrite(PIN_PWMA, HIGH);  // sempre abilitato
+  digitalWrite(PIN_STBY, HIGH);  // esci dallo standby
   digitalWrite(PIN_IA, LOW); digitalWrite(PIN_IB, LOW);
 
   pinMode(PIN_FLOW, INPUT_PULLUP);
