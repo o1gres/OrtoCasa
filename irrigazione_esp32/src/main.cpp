@@ -448,6 +448,13 @@ void checkSchedule() {
   struct tm ti;
   if (!getLocalTime(&ti)) return;
   bool deveEssereAperta = false;
+  
+  // CHIUSURA FORZATA ALLE 22:00
+  if (ti.tm_hour == 22) {
+    if (valveOpen) closeValve();
+    return;
+  }
+  
   if (strcmp(scheduleMode, "fixed") == 0) {
     int wday = ti.tm_wday;
     if (giorniFissi[wday].abilitato) {
