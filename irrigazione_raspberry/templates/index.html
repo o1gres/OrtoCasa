@@ -112,10 +112,9 @@
     /* ── Tab giorni ── */
     .day-tabs{display:flex;gap:.3rem;margin-bottom:.75rem;overflow-x:auto;padding-bottom:.2rem}
     .day-tab{padding:.35rem .65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:.68rem;cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0}
-    .day-tab.active{background:#3b2e00;border-color:#fbbf24;color:#fbbf24;font-weight:700}
     .day-tab.enabled{border-color:var(--green2);color:var(--green)}
-    .day-tab.today{background:#0d1f3c;border-color:#60a5fa;color:#60a5fa;font-weight:700}
-    .day-tab.active.today{background:#2d2200;border-color:#fbbf24;color:#fbbf24}
+    .day-tab.today{background:#0d1f3c !important;border-color:#60a5fa !important;color:#60a5fa !important;font-weight:700}
+    .day-tab.active{background:#3b2e00 !important;border-color:#fbbf24 !important;color:#fbbf24 !important;font-weight:700}
 
     /* ── Fascia ── */
     .fascia-block{margin-bottom:.75rem;padding:.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px}
@@ -419,8 +418,8 @@
       const tab = document.createElement('div');
       let cls = 'day-tab';
       if (d.abilitato)          cls += ' enabled';
-      if (i === selectedDayIdx) cls += ' active';
       if (i === today)          cls += ' today';
+      if (i === selectedDayIdx) cls += ' active';
       tab.className   = cls;
       tab.textContent = GIORNI[i];
       tab.onclick     = () => { selectedDayIdx = i; renderDayTabs(); renderDayEditorContent(); };
