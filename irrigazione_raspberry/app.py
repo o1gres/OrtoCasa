@@ -236,7 +236,10 @@ def api_cmd():
     if cmd not in ("open", "close", "status", "ota", "reset_flow"):
         return jsonify({"error": "Comando non valido"}), 400
     try:
-        app.mqtt_client.publish(TOPIC_CMD, json.dumps({"cmd": cmd}))
+        payload = {"cmd": cmd}
+        if cmd == "open" and "minutes" in data:
+            payload["minutes"] = int(data["minutes"])
+        app.mqtt_client.publish(TOPIC_CMD, json.dumps(payload))
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

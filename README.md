@@ -1,271 +1,268 @@
-# 🌿 Irrigazione Orto — Smart Irrigation System
+# 🌿 OrtoCasa — Sistema Irrigazione Smart
 
-Sistema di irrigazione automatica per orto domestico basato su **ESP32** + **Raspberry Pi**.
+Sistema di irrigazione automatica per orto domestico basato su ESP32 e Raspberry Pi, con interfaccia web, schedulazione avanzata, monitoraggio del flusso e sensore di umidità del suolo.
+
+---
+
+## Architettura
 
 ```
-[ESP32-WROOM-32U + L9110S + Elettrovalvola bistabile]
-        ↕ MQTT (Wi-Fi LAN)
+[ESP32-WROOM-32U + TB6612FNG + Elettrovalvola bistabile + FS400A + HD-38]
+        ↕ MQTT (Wi-Fi LAN, autenticazione user/pass)
 [Raspberry Pi — Mosquitto broker]
         ↕
-[Raspberry Pi — Flask web app :5000]
+[Raspberry Pi — Flask web app :5000 + SQLite]
         ↕ Browser / Cellulare
-[Interfaccia web responsive]
 ```
 
 ---
 
-## ✨ Funzionalità
+## Hardware
 
-- **Fasce orarie** mattina + sera configurabili dall'interfaccia web
-- **Controllo manuale** apri/chiudi valvola dal browser
-- **Stato in tempo reale**: valvola, RSSI Wi-Fi, uptime, versione firmware
-- **OTA automatico**: l'ESP32 si aggiorna da solo ad ogni nuova release su GitHub
-- **Responsive**: interfaccia ottimizzata per cellulare
-- **Architettura ampliabile**: nuove zone, sensori, automazioni
+### Componenti
+
+| Componente | Descrizione |
+|-----------|-------------|
+| ESP32-WROOM-32U | Microcontrollore principale con Wi-Fi |
+| TB6612FNG | Driver doppio motore — pilota la valvola bistabile |
+| Elettrovalvola bistabile | Valvola on/off, mantiene la posizione senza corrente |
+| FS400A | Flussometro — conta i litri erogati |
+| HD-38 | Sensore umidità suolo resistivo (solo per test) |
+| Raspberry Pi | Server MQTT + Web App |
+
+### Collegamento PIN ESP32
+
+#### TB6612FNG
+| TB6612FNG | ESP32 | Funzione |
+|-----------|-------|----------|
+| AIN1 | GPIO 26 | Apre valvola |
+| AIN2 | GPIO 27 | Chiude valvola |
+| PWMA | GPIO 25 | Enable canale A (fisso HIGH) |
+| STBY | GPIO 14 | Standby (fisso HIGH = attivo) |
+| VCC | 3.3V | Alimentazione logica |
+| VMOT | 5V | Alimentazione motore |
+| GND / PGND | GND | Massa |
+
+#### FS400A (flussometro)
+| FS400A | ESP32 |
+|--------|-------|
+| VCC | 5V |
+| GND | GND |
+| Signal | GPIO 34 |
+
+#### HD-38 (sensore suolo)
+| HD-38 | ESP32 |
+|-------|-------|
+| VCC | 3.3V |
+| GND | GND |
+| DO | GPIO 32 |
+| AO | GPIO 33 |
+
+> ⚠️ Il sensore HD-38 si corrode rapidamente — consigliato solo per test. Per uso permanente preferire un sensore RS485 capacitivo.
 
 ---
 
-## 📁 Struttura del repository
+## Software
+
+### Struttura repository
 
 ```
+├── .github/workflows/build-firmware.yml   # CI/CD — compila e pubblica automaticamente
+├── docs/schema_collegamento.html          # Schema elettrico interattivo
+├── firmware/version.json                  # Versione corrente (aggiornata da Actions)
 ├── irrigazione_esp32/
-│   ├── irrigazione_esp32.ino   # Firmware ESP32
-│   └── config.example.h        # Template credenziali (copia in config.h)
-│
+│   ├── src/main.cpp                       # Firmware principale
+│   ├── src/config.h                       # Credenziali (in .gitignore)
+│   ├── config.example.h                   # Template configurazione
+│   └── platformio.ini                     # Configurazione PlatformIO
 ├── irrigazione_raspberry/
-│   ├── app.py                  # Backend Flask
-│   ├── templates/
-│   │   └── index.html          # Interfaccia web
-│   ├── .env.example            # Template variabili d'ambiente
-│   └── requirements.txt        # Dipendenze Python
-│
-├── firmware/
-│   └── version.json            # Versione corrente — aggiornato da GitHub Actions
-│
-├── docs/
-│   └── schema_collegamento.html  # Schema visivo ESP32 + L9110S
-│
-├── .github/
-│   └── workflows/
-│       └── build-firmware.yml  # CI/CD: compila e pubblica il .bin automaticamente
-│
+│   ├── templates/index.html               # Interfaccia web
+│   ├── app.py                             # Backend Flask
+│   ├── irrigazione.db                     # Database SQLite (generato automaticamente)
+│   ├── requirements.txt                   # Dipendenze Python
+│   └── .env / .env.example               # Variabili d'ambiente
 ├── .gitignore
 └── README.md
 ```
 
----
+### Configurazione ESP32
 
-## 🚀 Setup — Raspberry Pi
+Copia `config.example.h` in `config.h` e compila:
 
-### 1. Mosquitto (broker MQTT)
+```cpp
+#define WIFI_SSID       "tua_rete"
+#define WIFI_PASSWORD   "tua_password"
+#define MQTT_BROKER     "192.168.1.250"
+#define MQTT_PORT       1883
+#define MQTT_USER       "utente"
+#define MQTT_PASS       "password"
+#define GITHUB_USER     "o1gres"
+#define GITHUB_REPO     "OrtoCasa"
+```
+
+### Configurazione Raspberry Pi
 
 ```bash
-sudo apt update && sudo apt install -y mosquitto mosquitto-clients
-
-# Configurazione minima
-sudo nano /etc/mosquitto/mosquitto.conf
-```
-Aggiungi:
-```
-listener 1883
-allow_anonymous true
-```
-```bash
-sudo systemctl enable mosquitto
-sudo systemctl restart mosquitto
+cd ~/OrtoCasa/irrigazione_raspberry
+cp .env.example .env
+# Modifica .env con le tue credenziali MQTT
 ```
 
-### 2. App web (Flask)
+Installa e avvia il servizio:
 
 ```bash
-# Clona il repository
-git clone https://github.com/TUO_USERNAME/NOME_REPO.git
-cd NOME_REPO
-
-# Installa dipendenze
-pip3 install -r irrigazione_raspberry/requirements.txt
-
-# Copia e configura le variabili d'ambiente
-cp irrigazione_raspberry/.env.example irrigazione_raspberry/.env
-nano irrigazione_raspberry/.env   # modifica se necessario
-
-# Avvia
-cd irrigazione_raspberry
-python3 app.py
-```
-
-L'interfaccia sarà disponibile su **http://IP_RASPBERRY:5000**
-
-### 3. Avvio automatico al boot
-
-Crea `/etc/systemd/system/irrigazione.service`:
-```ini
-[Unit]
-Description=Irrigazione Orto Web App
-After=network.target mosquitto.service
-
-[Service]
-User=pi
-WorkingDirectory=/home/pi/NOME_REPO/irrigazione_raspberry
-ExecStart=/usr/bin/python3 app.py
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-```bash
-sudo systemctl daemon-reload
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 sudo systemctl enable irrigazione
 sudo systemctl start irrigazione
 ```
 
 ---
 
-## 🔧 Setup — ESP32
+## MQTT Topics
 
-### Librerie richieste (Arduino Library Manager)
-- `PubSubClient` by Nick O'Leary
-- `ArduinoJson` by Benoit Blanchon
+| Topic | Direzione | Descrizione |
+|-------|-----------|-------------|
+| `irrigazione/cmd` | Web → ESP | Comandi: `open`, `close`, `status`, `ota`, `reset_flow` |
+| `irrigazione/schedule` | Web → ESP | Programmazione (retained) |
+| `irrigazione/status` | ESP → Web | Stato valvola, flusso, suolo (retained) |
+| `irrigazione/heartbeat` | ESP → Web | Online/offline, uptime, ora ESP (retained) |
+| `irrigazione/flow` | ESP → Web | Dati flusso ogni 5 secondi |
+| `irrigazione/soil` | ESP → Web | Umidità suolo ogni 10 secondi |
+| `irrigazione/ota` | ESP → Web | Stato aggiornamento firmware |
+| `irrigazione/schedule_debug` | ESP → Web | Debug schedulazione ogni 60 secondi |
 
-### Configurazione credenziali
+---
+
+## Funzionalità
+
+### Controllo valvola
+- Apertura/chiusura manuale da interfaccia web
+- Impulso bistabile da 300ms (mantiene posizione senza corrente)
+- Chiusura forzata automatica alle 22:00 ogni giorno
+
+### Schedulazione
+- **Giorni fissi** — configura fasce mattina/sera per ogni giorno della settimana
+- **Giorno sì/no** — irrigazione a giorni alterni con fasce comuni
+- Ogni giorno può avere mattina e sera abilitati indipendentemente
+
+### Monitoraggio acqua
+- Conteggio litri per sessione
+- Storico giornaliero su SQLite
+- Totale stagionale con reset manuale
+- Rilevamento perdite (flusso con valvola chiusa)
+
+### Sensore suolo
+- Lettura percentuale umidità (0-100%)
+- Stato digitale bagnato/secco
+- Barra colorata nell'interfaccia (ambra → verde)
+- Calibrazione con valori `SOIL_DRY` e `SOIL_WET`
+
+### OTA (Over The Air)
+- Check automatico ogni ora
+- Aggiornamento forzato via comando MQTT
+- Pipeline CI/CD con GitHub Actions
+- Versioning semantico (es. v2.1.9)
+
+---
+
+## Rilascio nuova versione firmware
 
 ```bash
-cp irrigazione_esp32/config.example.h irrigazione_esp32/config.h
+# 1. Modifica FIRMWARE_VERSION in main.cpp
+# 2. Committa e pusha
+git add .
+git commit -m "feat: descrizione modifica, vX.Y.Z"
+git push origin master
+
+# 3. Crea il tag — GitHub Actions compila automaticamente
+git tag vX.Y.Z
+git push origin vX.Y.Z
+
+# 4. Forza OTA sull'ESP32
+mosquitto_pub -h localhost -u utente -P password \
+  -t "irrigazione/cmd" -m '{"cmd":"ota"}'
 ```
 
-Modifica `config.h` con i tuoi dati:
+### Flash manuale via USB (emergenza)
+
+```bash
+# Scarica il binario
+wget https://github.com/o1gres/OrtoCasa/releases/latest/download/irrigazione_esp32.bin
+
+# Flash con esptool (Windows: COM5, Linux: /dev/ttyUSB0)
+python -m esptool --chip esp32 --port /dev/ttyUSB0 --baud 921600 \
+  write_flash -z 0x10000 irrigazione_esp32.bin
+```
+
+---
+
+## Calibrazione flussometro FS400A
+
+Il valore `PULSES_PER_LITER` va calibrato con il tuo impianto:
+
 ```cpp
-#define WIFI_SSID      "il_tuo_ssid"
-#define WIFI_PASSWORD  "la_tua_password"
-#define MQTT_BROKER    "192.168.1.X"   // IP del Raspberry
-#define GITHUB_USER    "tuo_username"
-#define GITHUB_REPO    "nome_repository"
+const float PULSES_PER_LITER = 100.0;  // da calibrare
 ```
 
-> ⚠️ `config.h` è nel `.gitignore` — non viene mai committato.
-
-Carica lo sketch tramite USB. Dopo il primo caricamento tutti gli aggiornamenti avvengono via OTA.
+Procedura: lascia scorrere 10 litri misurati con un secchio e conta i pulse. Dividi pulse per litri.
 
 ---
 
-## 📡 Topic MQTT
+## Calibrazione sensore suolo HD-38
 
-| Topic                    | Direzione     | Payload esempio |
-|--------------------------|---------------|-----------------|
-| `irrigazione/cmd`        | Web → ESP32   | `{"cmd":"open"}` / `{"cmd":"close"}` / `{"cmd":"ota"}` |
-| `irrigazione/schedule`   | Web → ESP32   | vedi sotto |
-| `irrigazione/status`     | ESP32 → Web   | `{"valve":"open","wifi_rssi":-55,"firmware_version":"1.0.0"}` |
-| `irrigazione/heartbeat`  | ESP32 → Web   | `{"online":true,"uptime_s":3600,"firmware_version":"1.0.0"}` |
-| `irrigazione/ota`        | ESP32 → Web   | `{"stato":"updating","version":"1.1.0"}` |
-
-**Payload schedule:**
-```json
-{
-  "mattina": {"ora_inizio":6,"min_inizio":0,"ora_fine":6,"min_fine":30,"abilitata":true},
-  "sera":    {"ora_inizio":19,"min_inizio":0,"ora_fine":19,"min_fine":30,"abilitata":false}
-}
+```cpp
+const int SOIL_DRY = 2688;  // valore ADC con sensore asciutto
+const int SOIL_WET = 1100;  // valore ADC con sensore in acqua
 ```
+
+Procedura:
+1. Sensore asciutto in aria → annota il valore `Raw` da MQTT
+2. Sensore immerso in acqua → annota il valore `Raw`
+3. Aggiorna le costanti e fai OTA
 
 ---
 
-## 🔄 OTA — Aggiornamenti firmware
+## Versioni firmware
 
-Il sistema usa **OTA via HTTP pull da GitHub Releases**. Il flusso è completamente automatico:
-
-```
-git tag v1.1.0 && git push origin v1.1.0
-        ↓
-GitHub Actions compila il firmware
-        ↓
-Crea una Release con il .bin allegato
-        ↓
-Aggiorna firmware/version.json su main
-        ↓
-ESP32 (entro 1 ora) rileva la nuova versione
-        ↓
-Scarica il .bin, si flasha e si riavvia ✓
-```
-
-### Come rilasciare una nuova versione
-
-1. Aggiorna `#define FIRMWARE_VERSION` nel `.ino` (es. `"1.1.0"`)
-2. Fai commit e push
-3. Crea il tag:
-```bash
-git tag v1.1.0
-git push origin v1.1.0
-```
-4. GitHub Actions fa tutto il resto automaticamente.
-
-### Trigger manuale OTA (senza aspettare 1 ora)
-```bash
-mosquitto_pub -t "irrigazione/cmd" -m '{"cmd":"ota"}'
-```
-
-### Configurazione GitHub Secrets richiesti
-
-Vai su **Settings → Secrets and variables → Actions** nel tuo repo e aggiungi:
-
-| Secret | Valore |
-|--------|--------|
-| `WIFI_SSID` | Nome della tua rete Wi-Fi |
-| `WIFI_PASSWORD` | Password Wi-Fi |
-| `MQTT_BROKER` | IP del Raspberry Pi |
+| Versione | Descrizione |
+|----------|-------------|
+| v1.0.1 | Versione base |
+| v1.2.0 | Flussometro FS400A, storico SQLite, rilevamento perdite |
+| v2.0.0 | Scheduler avanzato giorni fissi + giorno sì/no |
+| v2.1.0 | Sensore suolo HD-38 |
+| v2.1.2 | Debug schedule su MQTT |
+| v2.1.5 | Fix buffer MQTT 2048 per payload schedule |
+| v2.1.7 | Ora ESP in heartbeat, debug mqtt_callback |
+| v2.1.8 | Chiusura forzata valvola alle 22:00 |
+| v2.1.9 | Supporto TB6612FNG |
 
 ---
 
-## 🔌 Schema collegamento
+## Dipendenze
 
-| Da (ESP32) | A (L9110S) | Colore | Note |
-|------------|------------|--------|------|
-| VIN / 5V   | VCC        | Blu    | O alimentazione esterna per valvole 12V |
-| GND        | GND        | Nero   | Massa comune obbligatoria |
-| GPIO 26    | IA         | Verde  | Impulso apertura (300ms) |
-| GPIO 27    | IB         | Giallo | Impulso chiusura (300ms) |
-| —          | OA → OB    | Viola  | Fili elettrovalvola bistabile |
+### ESP32 (PlatformIO)
+```ini
+lib_deps =
+    knolleary/PubSubClient @ ^2.8
+    bblanchon/ArduinoJson @ ^7.0
+```
 
-Vedi `docs/schema_collegamento.html` per lo schema visivo completo.
-
----
-
-## 🛠️ Debug
-
-```bash
-# Ascolta tutti i topic MQTT
-mosquitto_sub -t "irrigazione/#" -v
-
-# Apri manualmente la valvola
-mosquitto_pub -t "irrigazione/cmd" -m '{"cmd":"open"}'
-
-# Forza controllo OTA
-mosquitto_pub -t "irrigazione/cmd" -m '{"cmd":"ota"}'
-
-# Log app Flask
-sudo journalctl -u irrigazione -f
+### Raspberry Pi (Python)
+```
+flask
+paho-mqtt
+python-dotenv
 ```
 
 ---
 
-## 📈 Come aggiungere funzionalità
+## Note
 
-### Nuova fascia oraria
-1. `irrigazione_esp32.ino`: aggiungi `Fascia fasciaMezzogiorno` e includila in `checkSchedule()`
-2. `app.py`: aggiungi `"mezzogiorno"` nel dict `state["schedule"]`
-3. `index.html`: duplica il blocco card mattina/sera
-
-### Nuova zona di irrigazione
-1. Aggiungi nuovi PIN e funzioni valvola nel `.ino`
-2. Estendi i topic: `irrigazione/zona2/cmd`
-3. Aggiungi sezione nella web app
-
-### Sensore umidità del suolo
-1. Leggi ADC sul `.ino` e aggiungilo al payload `publishStatus()`
-2. Mostralo nell'interfaccia come nuova pill informativa
-3. Opzionale: logica per irrigare solo sotto soglia di umidità
-
----
-
-## 📄 Licenza
-
-MIT — libero uso personale e modifiche.
+- Il Raspberry Pi ha IP fisso `192.168.1.250`
+- Il broker Mosquitto richiede autenticazione
+- Il servizio Flask gira su porta `5000`
+- I file `config.h` e `.env` sono in `.gitignore` — non vengono mai pushati
+- GitHub Actions richiede i secret: `WIFI_SSID`, `WIFI_PASSWORD`, `MQTT_BROKER`, `MQTT_USER`, `MQTT_PASS`
+- In Settings → Actions → General → abilitare "Read and write permissions"

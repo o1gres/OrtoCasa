@@ -1,8 +1,8 @@
 /*
- * Sistema Irrigazione ESP32 v2.1.0
- * Hardware: ESP32-WROOM-32U + L9110S + Elettrovalvola bistabile + FS400A + HD-38
+ * Sistema Irrigazione ESP32 v2.1.8
+ * Hardware: ESP32-WROOM-32U + TB6612FNG + Elettrovalvola bistabile + FS400A + HD-38
  *
- * PIN L9110S:    IA -> GPIO 26, IB -> GPIO 27
+ * PIN TB6612FNG: AIN1 -> GPIO 26, AIN2 -> GPIO 27, PWMA -> GPIO 25, STBY -> GPIO 14
  * PIN FS400A:    Segnale -> GPIO 34
  * PIN HD-38:     DO -> GPIO 32, AO -> GPIO 33
  */
@@ -16,12 +16,18 @@
 #include <time.h>
 #include "config.h"
 
-#define FIRMWARE_VERSION "2.1.7"
+#define FIRMWARE_VERSION "2.2.0"
 #define OTA_CHECK_INTERVAL 3600000UL
 
 // ── PIN ───────────────────────────────────────────────────────────────────────
-const int PIN_IA       = 26;
-const int PIN_IB       = 27;
+// TB6612FNG
+const int PIN_AIN1     = 26;   // Direzione A — apri
+const int PIN_AIN2     = 27;   // Direzione B — chiudi
+const int PIN_PWMA     = 25;   // PWM Enable canale A (teniamo HIGH fisso)
+const int PIN_STBY     = 14;   // Standby — HIGH = attivo
+// Alias per compatibilità con il resto del codice
+const int PIN_IA       = PIN_AIN1;
+const int PIN_IB       = PIN_AIN2;
 const int PIN_FLOW     = 34;
 const int PIN_SOIL_DO  = 32;   // HD-38 digitale
 const int PIN_SOIL_AO  = 33;   // HD-38 analogico
@@ -30,8 +36,8 @@ const int PULSE_MS     = 300;
 // ── Calibrazione sensore suolo ────────────────────────────────────────────────
 // Valori da calibrare: misura raw con sensore asciutto e bagnato
 // e aggiorna questi valori
-const int SOIL_DRY = 2688;   // valore ADC con sensore asciutto
-const int SOIL_WET = 1100;    // valore ADC con sensore in acqua
+const int SOIL_DRY = 3500;   // valore ADC con sensore asciutto
+const int SOIL_WET = 800;    // valore ADC con sensore in acqua
 
 // ── Flussometro ───────────────────────────────────────────────────────────────
 const float PULSES_PER_LITER   = 100.0;
@@ -47,10 +53,6 @@ bool          leakAlert      = false;
 int  soilMoisturePct = 0;
 int  soilRaw         = 0;
 bool soilWet         = false;
-
-// -- TB6612FNG -- Ponte H
-const int PIN_PWMA = 25;   // PWM Enable — teniamo HIGH fisso
-const int PIN_STBY = 14;   // Standby — HIGH = attivo
 
 // ── MQTT Topics ───────────────────────────────────────────────────────────────
 const char* TOPIC_CMD       = "irrigazione/cmd";
@@ -69,6 +71,7 @@ PubSubClient     mqtt(wifiClient);
 
 bool valveOpen     = false;
 bool otaInProgress = false;
+bool manualMode    = false;  // true = aperta manualmente, scheduler non interviene
 
 // ── Scheduler ─────────────────────────────────────────────────────────────────
 char scheduleMode[12] = "fixed";
@@ -350,13 +353,22 @@ void handleSchedule(const char* payload) {
   Serial.println("[SCHEDULE] Parsing completato");
 }
 
+// ── Timer apertura manuale ────────────────────────────────────────────────────
+unsigned long manualCloseAt = 0;  // millis() quando chiudere, 0 = nessun timer
+
 void handleCommand(const char* payload) {
   JsonDocument doc;
   if (deserializeJson(doc, payload) != DeserializationError::Ok) return;
   const char* cmd = doc["cmd"];
   if (!cmd) return;
-  if (strcmp(cmd, "open")       == 0) openValve();
-  if (strcmp(cmd, "close")      == 0) closeValve();
+  if (strcmp(cmd, "open") == 0) {
+    manualMode    = true;
+    manualCloseAt = 0;  // nessun timer — gestito da web
+    int minutes   = doc["minutes"] | 0;
+    if (minutes > 0) manualCloseAt = millis() + (unsigned long)minutes * 60000UL;
+    openValve();
+  }
+  if (strcmp(cmd, "close")      == 0) { manualMode = false; manualCloseAt = 0; closeValve(); }
   if (strcmp(cmd, "status")     == 0) publishStatus();
   if (strcmp(cmd, "ota")        == 0) checkAndUpdate();
   if (strcmp(cmd, "reset_flow") == 0) {
@@ -451,14 +463,17 @@ void publishScheduleDebug() {
 void checkSchedule() {
   struct tm ti;
   if (!getLocalTime(&ti)) return;
-  bool deveEssereAperta = false;
-  
-  // CHIUSURA FORZATA ALLE 22:00
+
+  // CHIUSURA FORZATA ALLE 22:00 — vale sempre, anche in manualMode
   if (ti.tm_hour == 22) {
-    if (valveOpen) closeValve();
+    if (valveOpen) { manualMode = false; closeValve(); }
     return;
   }
-  
+
+  // Se aperta manualmente, lo scheduler non interviene
+  if (manualMode) return;
+
+  bool deveEssereAperta = false;
   if (strcmp(scheduleMode, "fixed") == 0) {
     int wday = ti.tm_wday;
     if (giorniFissi[wday].abilitato) {
@@ -473,7 +488,7 @@ void checkSchedule() {
         inFascia(altSchedule.sera,    ti.tm_hour, ti.tm_min);
     }
   }
-  if (deveEssereAperta && !valveOpen)  openValve();
+  if (deveEssereAperta && !valveOpen)  { manualMode = false; openValve(); }
   if (!deveEssereAperta && valveOpen)  closeValve();
 }
 
@@ -492,11 +507,12 @@ void setup() {
   Serial.begin(115200);
   Serial.printf("\n=== Sistema Irrigazione ESP32 v%s ===\n", FIRMWARE_VERSION);
 
-  pinMode(PIN_IA, OUTPUT); pinMode(PIN_IB, OUTPUT);
+  // TB6612FNG
+  pinMode(PIN_AIN1, OUTPUT); pinMode(PIN_AIN2, OUTPUT);
   pinMode(PIN_PWMA, OUTPUT); pinMode(PIN_STBY, OUTPUT);
+  digitalWrite(PIN_AIN1, LOW); digitalWrite(PIN_AIN2, LOW);
   digitalWrite(PIN_PWMA, HIGH);  // sempre abilitato
   digitalWrite(PIN_STBY, HIGH);  // esci dallo standby
-  digitalWrite(PIN_IA, LOW); digitalWrite(PIN_IB, LOW);
 
   pinMode(PIN_FLOW, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(PIN_FLOW), onFlowPulse, FALLING);
@@ -524,6 +540,13 @@ void loop() {
     lastMqttRetry = now; mqttConnect();
   }
   if (mqtt.connected()) mqtt.loop();
+
+  // Check timer apertura manuale
+  if (manualMode && manualCloseAt > 0 && millis() >= manualCloseAt) {
+    manualMode    = false;
+    manualCloseAt = 0;
+    closeValve();
+  }
 
   if (now - lastSoilRead >= SOIL_READ_INTERVAL) {
     lastSoilRead = now;
