@@ -27,7 +27,8 @@ TOPIC_HEARTBEAT = "irrigazione/heartbeat"
 TOPIC_FLOW      = "irrigazione/flow"
 TOPIC_SOIL      = "irrigazione/soil"
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "irrigazione.db")
+DB_PATH       = os.path.join(os.path.dirname(__file__), "irrigazione.db")
+SCHEDULE_PATH = os.path.join(os.path.dirname(__file__), "schedule.json")
 
 # ── Database ──────────────────────────────────────────────────────────────────
 def db_connect():
@@ -88,6 +89,25 @@ def db_reset_season():
         conn.execute("UPDATE season SET total_liters = 0, start_date = date('now') WHERE id = 1")
         conn.commit()
 
+# ── Persistenza programmazione ────────────────────────────────────────────────
+def save_schedule(schedule):
+    try:
+        with open(SCHEDULE_PATH, 'w') as f:
+            json.dump(schedule, f, indent=2)
+    except Exception as e:
+        print(f"[SCHEDULE] Errore salvataggio: {e}")
+
+def load_schedule():
+    try:
+        if os.path.exists(SCHEDULE_PATH):
+            with open(SCHEDULE_PATH, 'r') as f:
+                data = json.load(f)
+                print("[SCHEDULE] Programmazione caricata da file")
+                return data
+    except Exception as e:
+        print(f"[SCHEDULE] Errore caricamento: {e}")
+    return None
+
 # ── Stato condiviso ───────────────────────────────────────────────────────────
 _lock = threading.Lock()
 
@@ -128,6 +148,11 @@ state = {
 _session_start_liters = 0.0
 _valve_was_open       = False
 
+# Carica programmazione salvata
+_saved_schedule = load_schedule()
+if _saved_schedule:
+    state["schedule"] = _saved_schedule
+
 # ── MQTT ──────────────────────────────────────────────────────────────────────
 def on_connect(client, userdata, flags, reason_code, properties):
     print(f"[MQTT] Connesso (rc={reason_code})")
@@ -135,6 +160,11 @@ def on_connect(client, userdata, flags, reason_code, properties):
     client.subscribe(TOPIC_HEARTBEAT)
     client.subscribe(TOPIC_FLOW)
     client.subscribe(TOPIC_SOIL)
+    # Ripubblica la programmazione salvata così l'ESP32 la riceve subito
+    with _lock:
+        schedule = state["schedule"].copy()
+    client.publish(TOPIC_SCHEDULE, json.dumps(schedule), retain=True)
+    print("[MQTT] Programmazione ripubblicata")
 
 def on_message(client, userdata, msg):
     global _session_start_liters, _valve_was_open
@@ -260,6 +290,7 @@ def api_schedule_set():
         if "alternate" in data:
             state["schedule"]["alternate"] = data["alternate"]
         payload = state["schedule"].copy()
+        save_schedule(state["schedule"])  # salva su file per persistenza
     try:
         app.mqtt_client.publish(TOPIC_SCHEDULE, json.dumps(payload), retain=True)
         return jsonify({"ok": True})
