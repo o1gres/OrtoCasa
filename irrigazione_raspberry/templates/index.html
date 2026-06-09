@@ -639,14 +639,24 @@
       return;
     }
     const data = [...history].reverse().slice(-7);
-    const max  = Math.max(...data.map(d => d.liters), 1);
+    const values = data.map(d => d.liters).filter(v => v > 0);
+    const max = values.length ? Math.max(...values) : 1;
+    const min = values.length ? Math.min(...values) : 0;
     data.forEach(d => {
-      const pct = (d.liters/max)*100;
+      let pct;
+      if (d.liters <= 0) {
+        pct = 0;
+      } else if (max === min) {
+        pct = 80;
+      } else {
+        // scala min-max: minimo a 20%, massimo a 100% per accentuare le differenze
+        pct = 20 + ((d.liters - min) / (max - min)) * 80;
+      }
       const col = document.createElement('div');
       col.className = 'bar-col';
       col.innerHTML = `
         <div class="bar-val">${d.liters>0?Number(d.liters).toFixed(0):''}</div>
-        <div class="bar" style="height:${Math.max(pct,2)}%"
+        <div class="bar" style="height:${pct}%"
              title="${d.data}: ${Number(d.liters).toFixed(1)} L"></div>
         <div class="bar-label">${d.data.slice(5)}</div>`;
       chart.appendChild(col);
