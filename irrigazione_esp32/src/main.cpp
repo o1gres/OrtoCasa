@@ -16,7 +16,7 @@
 #include <time.h>
 #include "config.h"
 
-#define FIRMWARE_VERSION "2.2.0"
+#define FIRMWARE_VERSION "2.2.1"
 #define OTA_CHECK_INTERVAL 3600000UL
 
 // ── PIN ───────────────────────────────────────────────────────────────────────
@@ -31,7 +31,8 @@ const int PIN_IB       = PIN_AIN2;
 const int PIN_FLOW     = 34;
 const int PIN_SOIL_DO  = 32;   // HD-38 digitale
 const int PIN_SOIL_AO  = 33;   // HD-38 analogico
-const int PULSE_MS     = 300;
+const int PULSE_MS       = 300;    // durata impulso apertura
+const int PULSE_CLOSE_MS = 1000;   // durata impulso chiusura
 
 // ── Calibrazione sensore suolo ────────────────────────────────────────────────
 // Valori da calibrare: misura raw con sensore asciutto e bagnato
@@ -136,7 +137,7 @@ void valveImpulse(bool apri) {
   Serial.printf("[VALVOLA] Impulso %s\n", apri ? "APERTURA" : "CHIUSURA");
   digitalWrite(PIN_IA, apri  ? HIGH : LOW);
   digitalWrite(PIN_IB, !apri ? HIGH : LOW);
-  delay(PULSE_MS);
+  delay(apri ? PULSE_MS : PULSE_CLOSE_MS);
   digitalWrite(PIN_IA, LOW);
   digitalWrite(PIN_IB, LOW);
   valveOpen = apri;
@@ -145,7 +146,7 @@ void valveImpulse(bool apri) {
 }
 
 void openValve()  { if (!valveOpen)  valveImpulse(true);  }
-void closeValve() { if (valveOpen)   valveImpulse(false); }
+void closeValve() { valveImpulse(false); }  // invia sempre l'impulso di chiusura
 
 // ── Flusso ────────────────────────────────────────────────────────────────────
 void calcFlowRate() {
